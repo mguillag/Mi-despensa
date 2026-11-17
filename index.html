@@ -102,7 +102,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 <div class="modal" id="scanModal"><div class="sheet">
 <div class="sheethead"><h2>Escanear código</h2><button class="close" data-close>×</button></div>
 <div id="scannerArea" class="panel" style="text-align:center">
- <video id="video" playsinline style="width:100%;max-height:260px;object-fit:cover;border-radius:12px;background:#17231b"></video>
+ <div id="reader" style="width:100%;max-width:420px;margin:auto;overflow:hidden;border-radius:12px"></div>
  <p class="small muted">Centra el código de barras dentro de la cámara.</p>
  <div id="scanStatus" class="small muted">Preparando cámara…</div>
 </div>
@@ -111,6 +111,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 <div class="small muted" style="margin-top:10px">La búsqueda usa Open Food Facts. Si el producto no aparece, podrás registrarlo manualmente.</div>
 </div></div>
 
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 const KEY='miDespensa.v1';
 const zones=['Despensa','Nevera','Congelador','Despensa emergencia'];
@@ -161,18 +162,30 @@ document.getElementById('profileBtn').onclick=()=>showView('settings');
 document.getElementById('clearBtn').onclick=()=>{if(confirm('¿Seguro que quieres borrar todos los productos de esta despensa?')){db.products=[];saveDB();render()}};
 document.getElementById('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-despensa-copia.json';a.click();URL.revokeObjectURL(a.href)};
 document.getElementById('scanBtn').onclick=()=>{document.getElementById('scanModal').classList.add('open');startCamera()};
+let qrScanner=null, scannerBusy=false;
 async function startCamera(){
- const video=document.getElementById('video'), statusEl=document.getElementById('scanStatus');
- if(!navigator.mediaDevices?.getUserMedia){statusEl.textContent='La cámara no está disponible aquí. Introduce el código manualmente.';return}
+ const statusEl=document.getElementById('scanStatus');
+ statusEl.textContent='Preparando la cámara…';
+ if(!window.Html5Qrcode){statusEl.textContent='No se pudo cargar el lector. Comprueba la conexión a Internet o escribe el código manualmente.';return}
  try{
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=stream;await video.play();
-  if('BarcodeDetector' in window){try{detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});statusEl.textContent='Apunta al código de barras…';scanLoop()}catch(e){statusEl.textContent='No se pudo iniciar el lector. Introduce el código manualmente.'}}
-  else statusEl.textContent='Este navegador no incorpora lector automático. Introduce el código manualmente.';
- }catch(e){statusEl.textContent='No se pudo acceder a la cámara. Comprueba los permisos o introduce el código manualmente.'}
+  scannerBusy=false;
+  qrScanner=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E]});
+  await qrScanner.start({facingMode:'environment'},{fps:12,qrbox:{width:260,height:150},aspectRatio:1.777},async code=>{
+   if(scannerBusy)return;
+   scannerBusy=true;
+   document.getElementById('manualBarcode').value=code;
+   statusEl.textContent='Código detectado. Buscando producto…';
+   await stopCamera();
+   lookupBarcode(code);
+  },()=>{});
+  statusEl.textContent='Enfoca el código de barras con buena luz y mantén el móvil quieto.';
+ }catch(e){statusEl.textContent='No se pudo abrir la cámara. Comprueba el permiso de cámara en Safari o introduce el código manualmente.';await stopCamera()}
 }
-async function scanLoop(){if(!stream||!detector)return;try{const codes=await detector.detect(document.getElementById('video'));if(codes.length){document.getElementById('manualBarcode').value=codes[0].rawValue;stopCamera();lookupBarcode(codes[0].rawValue);return}}catch(e){}requestAnimationFrame(scanLoop)}
-function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}detector=null}
-document.getElementById('manualLookup').onclick=()=>{const code=document.getElementById('manualBarcode').value.trim();if(code)lookupBarcode(code)};
+async function stopCamera(){
+ const scanner=qrScanner;qrScanner=null;
+ if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}try{scanner.clear()}catch(e){}}
+}
+document.getElementById('manualLookup').onclick=async()=>{const code=document.getElementById('manualBarcode').value.trim();if(code){await stopCamera();lookupBarcode(code)}};
 async function lookupBarcode(code){
  const statusEl=document.getElementById('scanStatus');statusEl.textContent='Buscando producto…';
  try{

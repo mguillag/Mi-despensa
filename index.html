@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Mi despensa</title>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json?v=4">
 <style>
 :root{--green:#405b48;--green-dark:#2f4637;--pale:#e9efe8;--ink:#26342b;--muted:#738075;--bg:#f5f5ef;--white:#fff;--amber:#b87932;--red:#b54d43;--line:#e5e8e1;--shadow:0 8px 28px #26342b10}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -17,11 +17,12 @@ h1{font-size:23px;margin:8px 0 5px}h2{font-size:17px;margin:0}.muted{color:var(-
 .section-head{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px}.linkbtn{border:0;background:none;color:var(--green);font-weight:700;font-size:13px}
 .priority,.product,.panel{background:var(--white);border-radius:16px;padding:14px;box-shadow:var(--shadow)}.priority-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.priority-row:last-child{border:0}.product-list{display:grid;gap:10px}.product{display:flex;align-items:center;gap:12px}.food-icon{width:44px;height:44px;flex:0 0 44px;border-radius:13px;background:var(--pale);display:grid;place-items:center;font-size:22px}.product-main{min-width:0;flex:1}.product-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.product-meta{font-size:12px;color:var(--muted);margin-top:4px}.pill{font-size:11px;font-weight:700;border-radius:99px;padding:6px 9px;background:var(--pale);color:var(--green);white-space:nowrap}.pill.warn{background:#fff0dc;color:#986020}.pill.danger{background:#fbe8e5;color:var(--red)}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.primary,.secondary{border:0;border-radius:14px;padding:14px 12px;font-weight:700}.primary{background:var(--green);color:white}.secondary{background:var(--pale);color:var(--green)}
-nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}.navinner{max-width:760px;width:100%;display:grid;grid-template-columns:repeat(4,1fr)}.navbtn{border:0;background:none;color:var(--muted);padding:7px 2px;font-size:10px;display:grid;gap:4px;justify-items:center}.navbtn .ico{font-size:19px}.navbtn.active{color:var(--green);font-weight:800}
+nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}.navinner{max-width:760px;width:100%;display:grid;grid-template-columns:repeat(5,1fr)}.navbtn{border:0;background:none;color:var(--muted);padding:7px 2px;font-size:10px;display:grid;gap:4px;justify-items:center}.navbtn .ico{font-size:19px}.navbtn.active{color:var(--green);font-weight:800}
 .view{display:none}.view.active{display:block}.toolbar{display:flex;gap:8px;overflow:auto;padding:3px 0 10px}.chip{border:1px solid var(--line);border-radius:99px;background:white;padding:8px 12px;font-size:12px;white-space:nowrap;color:var(--muted)}.chip.active{background:var(--green);border-color:var(--green);color:white}
 .field{display:grid;gap:6px;margin:12px 0}.field label{font-size:12px;font-weight:700;color:var(--muted)}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:12px;color:var(--ink);outline-color:var(--green)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formgrid .field{margin:4px 0}.full{grid-column:1/-1}
 .modal{position:fixed;inset:0;background:#14201866;display:none;align-items:flex-end;justify-content:center;z-index:10;padding:12px}.modal.open{display:flex}.sheet{background:var(--bg);border-radius:22px 22px 16px 16px;padding:20px;width:min(100%,620px);max-height:92dvh;overflow:auto}.sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.close{border:0;background:var(--pale);color:var(--green);border-radius:50%;width:34px;height:34px;font-size:20px}.empty{text-align:center;padding:34px 18px;color:var(--muted)}.empty .big{font-size:36px;margin-bottom:8px}.notice{padding:12px;border-radius:12px;background:#fff4e5;color:#80541f;font-size:12px;line-height:1.45;margin:12px 0}.profileline{display:flex;gap:8px;align-items:center}.profileline input{flex:1}.dangerbtn{background:#fbe8e5;color:var(--red);border:0;border-radius:10px;padding:9px 11px;font-size:12px;font-weight:700}
 @media(min-width:600px){.app{padding-left:24px;padding-right:24px}.modal{align-items:center}.sheet{border-radius:22px}}
+textarea{width:100%;min-height:95px;border:1px solid var(--line);border-radius:11px;padding:12px;font:inherit} .week-grid{display:grid;gap:10px}.day-card{background:white;border-radius:15px;padding:13px;box-shadow:var(--shadow)}.day-card h3{margin:0 0 8px;font-size:14px}.meal-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line);font-size:13px}.mini-btn{border:0;background:var(--pale);border-radius:9px;padding:8px;color:var(--green)}.shop-item{display:flex;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}.shop-item input{width:19px;height:19px}.note{font-size:12px;color:var(--muted);line-height:1.5} .icon-picker{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.icon-choice{font-size:23px;background:white;border:1px solid var(--line);border-radius:10px;padding:7px 0}.icon-choice.selected{border:2px solid var(--green);background:var(--pale)}
 </style>
 </head>
 <body>
@@ -55,6 +56,15 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 <div class="product-list" id="alertList"></div>
 </section>
 
+<section id="planning" class="view">
+<h1>Menú semanal 🍽️</h1><p class="muted small">Planifica tus platos y comprueba qué ingredientes te faltan.</p>
+<div class="actions"><button class="primary" id="newRecipe">＋ Crear receta</button><button class="secondary" id="newMeal">＋ Planificar plato</button></div>
+<div class="section-head"><h2>Esta semana</h2><button class="linkbtn" id="clearWeek">Vaciar semana</button></div>
+<div id="weekGrid" class="week-grid"></div>
+<div class="section-head"><h2>Recetas disponibles</h2></div><p class="note">Incluye recetas preparadas y tus propias recetas. Puedes ajustar los comensales al planificar cada plato.</p><div id="recipeList" class="product-list"></div>
+<div class="section-head"><h2>Lista de la compra 🛒</h2><button class="linkbtn" id="copyShopping">Copiar lista</button></div>
+<div class="panel"><div id="shoppingList"></div><p class="note">La lista descuenta las cantidades disponibles en tu inventario. Solo compara unidades compatibles (g/kg, ml/l o la misma unidad). Revisa los nombres y cantidades antes de comprar. Marcar como comprado no añade el producto al inventario.</p></div>
+</section>
 <section id="settings" class="view">
 <h1>Mi perfil y ajustes</h1>
 <div class="panel">
@@ -78,6 +88,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 <button class="navbtn active" data-view="home"><span class="ico">⌂</span>Inicio</button>
 <button class="navbtn" data-view="products"><span class="ico">▤</span>Inventario</button>
 <button class="navbtn" data-view="alerts"><span class="ico">◷</span>Caducidades</button>
+<button class="navbtn" data-view="planning"><span class="ico">🍽️</span>Menú</button>
 <button class="navbtn" data-view="settings"><span class="ico">⚙</span>Ajustes</button>
 </div></nav>
 
@@ -85,6 +96,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 <div class="sheethead"><h2 id="modalTitle">Añadir producto</h2><button class="close" data-close>×</button></div>
 <form id="productForm">
 <input type="hidden" id="editId">
+<div class="field"><label>Icono del producto (puedes elegirlo)</label><div id="iconPicker" class="icon-picker"></div><input type="hidden" id="pIcon"></div>
 <div class="field"><label>Nombre del producto *</label><input id="pName" required placeholder="Ej. Garbanzos cocidos"></div>
 <div class="formgrid">
 <div class="field"><label>Cantidad *</label><input id="pQty" type="number" min="1" step="1" value="1" required></div>
@@ -106,11 +118,14 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
  <p class="small muted">Centra el código de barras dentro de la cámara.</p>
  <div id="scanStatus" class="small muted">Preparando cámara…</div>
 </div>
+<div class="field"><label>Si tu iPhone no lee en directo, haz una foto del código</label><input id="barcodePhoto" type="file" accept="image/*" capture="environment"></div>
 <div class="field"><label>O introduce el código manualmente</label><input id="manualBarcode" inputmode="numeric" placeholder="Código de barras"></div>
 <button class="primary" id="manualLookup" style="width:100%">Buscar producto</button>
 <div class="small muted" style="margin-top:10px">La búsqueda usa Open Food Facts. Si el producto no aparece, podrás registrarlo manualmente.</div>
 </div></div>
 
+<div class="modal" id="recipeModal"><div class="sheet"><div class="sheethead"><h2>Receta</h2><button class="close" data-close>×</button></div><form id="recipeForm"><input type="hidden" id="recipeId"><div class="field"><label>Nombre del plato</label><input id="recipeName" required placeholder="Ej. Tortilla de patatas"></div><div class="field"><label>Comensales de la receta</label><input id="recipeServings" type="number" min="1" max="30" step="1" value="2" required></div><div class="field"><label>Ingredientes (uno por línea: cantidad unidad ingrediente)</label><textarea id="recipeIngredients" required placeholder="4 unidades huevos&#10;500 g patatas&#10;30 ml aceite de oliva"></textarea></div><p class="note">Usa nombres parecidos a los de tu inventario y una cantidad por ingrediente. Ejemplo: 200 g arroz.</p><button class="primary" style="width:100%" type="submit">Guardar receta</button></form></div></div>
+<div class="modal" id="mealModal"><div class="sheet"><div class="sheethead"><h2>Añadir al menú</h2><button class="close" data-close>×</button></div><form id="mealForm"><div class="field"><label>Día</label><select id="mealDay"></select></div><div class="field"><label>Comida o cena</label><select id="mealType"><option>Comida</option><option>Cena</option></select></div><div class="field"><label>Receta</label><select id="mealRecipe" required></select></div><div class="field"><label>¿Para cuántas personas?</label><input id="mealServings" type="number" min="1" max="30" step="1" value="2" required></div><button class="primary" style="width:100%" type="submit">Añadir al menú</button></form></div></div>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 const KEY='miDespensa.v1'; // Mantener esta clave para conservar los productos guardados
@@ -118,6 +133,27 @@ const zones=['Despensa','Nevera','Congelador','Despensa emergencia'];
 let db=loadDB(), activeZone='Todas', stream=null, detector=null;
 function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],profile:{person:'',household:''}}}catch(e){return {products:[],profile:{person:'',household:''}}}}
 function saveDB(){localStorage.setItem(KEY,JSON.stringify(db))}
+db.recipes ||= []; db.meals ||= []; db.bought ||= {};
+const PREMADE_RECIPES=[
+['Tortilla de patatas',2,'4 unidades huevos\n500 g patatas\n100 g cebolla\n30 ml aceite de oliva'],
+['Macarrones con tomate',2,'200 g macarrones\n250 g tomate triturado\n100 g cebolla\n20 ml aceite de oliva'],
+['Arroz con pollo',2,'180 g arroz\n300 g pollo\n100 g pimiento\n100 g cebolla\n20 ml aceite de oliva'],
+['Ensalada de atún',2,'150 g lechuga\n2 latas atun\n200 g tomate\n20 ml aceite de oliva'],
+['Pollo al horno con patatas',2,'400 g pollo\n500 g patatas\n20 ml aceite de oliva'],
+['Lentejas con verduras',4,'320 g lentejas\n200 g zanahoria\n200 g patatas\n150 g cebolla\n30 ml aceite de oliva'],
+['Crema de calabacín',2,'500 g calabacin\n200 g patatas\n100 g cebolla\n20 ml aceite de oliva'],
+['Salmón con arroz',2,'300 g salmon\n160 g arroz\n20 ml aceite de oliva'],
+['Pizza de jamón y queso',2,'1 unidades base de pizza\n150 g tomate triturado\n150 g queso mozzarella\n100 g jamon cocido'],
+['Bocadillo de pavo y queso',2,'2 unidades panecillos\n100 g pavo\n80 g queso'],
+['Pasta con atún',2,'200 g pasta\n2 latas atun\n200 g tomate triturado'],
+['Revuelto de champiñones',2,'4 unidades huevos\n250 g champinones\n15 ml aceite de oliva'],
+['Hamburguesa con patatas',2,'2 unidades hamburguesas\n2 unidades pan de hamburguesa\n400 g patatas'],
+['Garbanzos con espinacas',2,'400 g garbanzos cocidos\n250 g espinacas\n100 g cebolla\n20 ml aceite de oliva'],
+['Pechuga de pollo con boniato',2,'350 g pechuga de pollo\n400 g boniato\n20 ml aceite de oliva']
+];
+const premadeIds=new Set(PREMADE_RECIPES.map((_,i)=>'base-'+i));
+for(let i=0;i<PREMADE_RECIPES.length;i++){const [name,servings,ingredients]=PREMADE_RECIPES[i];if(!db.recipes.some(r=>r.id==='base-'+i))db.recipes.push({id:'base-'+i,name,servings,ingredients,premade:true})}
+
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function daysTo(date){const a=new Date();a.setHours(0,0,0,0);const b=new Date(date+'T00:00:00');return Math.ceil((b-a)/86400000)}
 function status(p){const d=daysTo(p.date);if(d<0)return {label:`Hace ${Math.abs(d)} días`,cls:'danger',d};if(d===0)return {label:'Hoy',cls:'danger',d};if(d<=3)return {label:`${d} días`,cls:'danger',d};if(d<=7)return {label:`${d} días`,cls:'warn',d};return {label:`${d} días`,cls:'',d}}
@@ -125,8 +161,19 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function fmt(date){return new Date(date+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}
 // Iconos basados en el alimento, nunca en la zona de almacenamiento.
 function iconFor(product){
+ if(product?.icon)return product.icon;
  const name=String(product?.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
  const rules=[
+ [/ketchup|ketchu|tomate frito|salsa de tomate/, '🍅'],
+ [/mayonesa|mostaza|salsa|alioli/, '🫙'],
+ [/patata|boniato/, '🥔'],
+ [/huevo/, '🥚'],
+ [/queso/, '🧀'],
+ [/leche|yogur|nata/, '🥛'],
+ [/atun|sardina|salmon|merluza/, '🐟'],
+ [/arroz/, '🍚'],
+ [/pasta|macarron|espagueti/, '🍝'],
+ [/pollo|pavo/, '🍗'],
   [/ketchup|catsup|catchup|tomate frito|salsa de tomate|tomate triturado|tomate concentrado/, '🍅'],
   [/mayonesa|mahonesa|alioli|mostaza|salsa barbacoa|salsa bbq|salsa cesar|salsa rosa|salsa picante|salsa de soja|salsa/, '🥫'],
   [/atun|bonito|sardina|salmon|merluza|bacalao|anchoa|caballa|pescado|sepia|calamar|gamba|langostino|marisco/, '🐟'],
@@ -179,6 +226,7 @@ function iconFor(product){
 }
 function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar">•••</button></article>`}
 function render(){
+ renderPlanning();
  const products=[...db.products].sort((a,b)=>a.date.localeCompare(b.date));
  const soon=products.filter(p=>daysTo(p.date)<=7&&daysTo(p.date)>=0);
  document.getElementById('totalCount').textContent=products.reduce((n,p)=>n+Number(p.qty),0);
@@ -197,7 +245,7 @@ function render(){
  document.getElementById('welcome').textContent=db.profile.person?`Hola, ${db.profile.person}. Esto es lo que tienes en casa.`:'Tu despensa, al día.';
 }
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));render();window.scrollTo(0,0)}
-function openProduct(p){document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('pName').value=p?.name||'';document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
+function openProduct(p){document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('pName').value=p?.name||'';document.getElementById('pIcon').value=p?.icon||'';renderIconPicker();document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
 function closeModal(el){el.classList.remove('open')}
 document.addEventListener('click',e=>{
  const v=e.target.closest('[data-view]');if(v)showView(v.dataset.view);
@@ -208,13 +256,37 @@ document.addEventListener('click',e=>{
  if(e.target.matches('[data-close]')){closeModal(e.target.closest('.modal'));stopCamera()}
 });
 document.getElementById('addBtn').onclick=()=>openProduct();
-document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim()};if(id){db.products=db.products.map(x=>x.id===id?p:x)}else db.products.push(p);saveDB();closeModal(document.getElementById('productModal'));render()};
+document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim(),icon:document.getElementById('pIcon').value};if(id){db.products=db.products.map(x=>x.id===id?p:x)}else db.products.push(p);saveDB();closeModal(document.getElementById('productModal'));render()};
 document.getElementById('search').addEventListener('input',render);
 document.getElementById('saveProfile').onclick=()=>{db.profile.person=document.getElementById('personName').value.trim();db.profile.household=document.getElementById('householdName').value.trim();saveDB();render();alert('Perfil guardado')};
 document.getElementById('profileBtn').onclick=()=>showView('settings');
 document.getElementById('clearBtn').onclick=()=>{if(confirm('¿Seguro que quieres borrar todos los productos de esta despensa?')){db.products=[];saveDB();render()}};
 document.getElementById('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-despensa-copia.json';a.click();URL.revokeObjectURL(a.href)};
 document.getElementById('scanBtn').onclick=()=>{document.getElementById('scanModal').classList.add('open');startCamera()};
+const ICONS=['🍅','🥬','🥔','🥕','🧅','🧄','🥦','🍌','🍎','🍋','🍓','🍞','🥐','🥚','🧀','🥛','🥩','🍗','🐟','🥫','🍝','🍚','🫘','🍪','🍫','🧈','🧃','🫙','🧂','🍯','🥣','🍕','🍔','🥗','🍲','📦'];
+function renderIconPicker(){const chosen=document.getElementById('pIcon').value;document.getElementById('iconPicker').innerHTML=ICONS.map(x=>`<button type="button" class="icon-choice ${chosen===x?'selected':''}" data-icon="${x}">${x}</button>`).join('')}
+document.getElementById('iconPicker').onclick=e=>{const b=e.target.closest('[data-icon]');if(b){document.getElementById('pIcon').value=b.dataset.icon;renderIconPicker()}};
+const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function parseIngredients(raw){return raw.split('\n').map(line=>{const m=line.trim().match(/^(\d+(?:[.,]\d+)?)\s+(kg|g|ml|l|litros|unidades|latas|paquetes|tarros|botellas)\s+(.+)$/i);return m?{qty:Number(m[1].replace(',','.')),unit:m[2].toLowerCase(),name:m[3].trim()}:null}).filter(Boolean)}
+function standardized(q,u){if(u==='kg')return [q*1000,'g'];if(u==='l'||u==='litros')return [q*1000,'ml'];return [q,u]}
+function ingredientKey(name,unit){return norm(name)+'|'+unit}
+function computeShopping(){const needed=new Map();for(const meal of db.meals){const recipe=db.recipes.find(r=>r.id===meal.recipeId);if(!recipe)continue;for(const ing of parseIngredients(recipe.ingredients)){const [qty,unit]=standardized(ing.qty,ing.unit);const key=ingredientKey(ing.name,unit);const old=needed.get(key)||{name:ing.name,qty:0,unit,key};old.qty+=qty*(Math.max(1,Number(meal.servings)||Number(recipe.servings)||2)/Math.max(1,Number(recipe.servings)||2));needed.set(key,old)}}
+ const stock=db.products.filter(p=>!p.date||daysTo(p.date)>=0).map(p=>{const [qty,unit]=standardized(Number(p.qty)||0,p.unit);return {...p,qty,unit}});
+ return [...needed.values()].map(n=>{const matches=stock.filter(p=>norm(p.name)===norm(n.name)&&p.unit===n.unit);const available=matches.reduce((sum,p)=>sum+p.qty,0);return {...n,missing:Math.max(0,Math.round((n.qty-available)*100)/100),available}})}
+function renderPlanning(){const week=document.getElementById('weekGrid');if(!week)return;week.innerHTML=DAYS.map((d,i)=>`<div class="day-card"><h3>${d}</h3>${['Comida','Cena'].map(t=>{const m=db.meals.find(x=>x.day===i&&x.type===t);const r=m&&db.recipes.find(x=>x.id===m.recipeId);return `<div class="meal-row"><span><b>${t}:</b> ${r?esc(r.name)+' · '+(m.servings||r.servings||2)+' pers.':'Sin planificar'}</span>${m?`<button class="mini-btn" data-remove-meal="${m.id}" aria-label="Quitar">×</button>`:`<button class="mini-btn" data-plan-day="${i}" data-plan-type="${t}">＋</button>`}</div>`}).join('')}</div>`).join('');
+ document.getElementById('recipeList').innerHTML=db.recipes.length?db.recipes.map(r=>`<div class="product"><div class="food-icon">🍽️</div><div class="product-main"><b>${esc(r.name)}</b><div class="small muted">${parseIngredients(r.ingredients).length} ingredientes · ${r.servings||2} personas ${r.premade?"· Preparada":"· Personal"}</div></div><button class="mini-btn" data-edit-recipe="${r.id}">Editar</button><button class="mini-btn" data-delete-recipe="${r.id}">×</button></div>`).join(''):'<div class="empty">Crea tu primera receta para planificar la semana.</div>';
+ const shopping=computeShopping().filter(x=>x.missing>0);document.getElementById('shoppingList').innerHTML=shopping.length?shopping.map(x=>`<label class="shop-item"><input type="checkbox" data-bought="${esc(x.key)}" ${db.bought[x.key]?'checked':''}><span style="${db.bought[x.key]?'text-decoration:line-through;opacity:.5':''}"><b>${esc(x.name)}</b> · ${x.missing} ${esc(x.unit)}<div class="note">Necesitas ${x.qty}; tienes ${x.available}</div></span></label>`).join(''):'<div class="empty">No faltan ingredientes para los platos planificados.</div>';
+}
+function openRecipe(r){document.getElementById('recipeId').value=r?.id||'';document.getElementById('recipeName').value=r?.name||'';document.getElementById('recipeIngredients').value=r?.ingredients||'';document.getElementById('recipeServings').value=r?.servings||2;document.getElementById('recipeModal').classList.add('open')}
+function openMeal(day=0,type='Comida'){if(!db.recipes.length){alert('Primero crea una receta.');openRecipe();return}document.getElementById('mealDay').innerHTML=DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('');document.getElementById('mealDay').value=day;document.getElementById('mealType').value=type;document.getElementById('mealServings').value=2;document.getElementById('mealRecipe').innerHTML=db.recipes.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');document.getElementById('mealRecipe').onchange=()=>{const r=db.recipes.find(x=>x.id===document.getElementById('mealRecipe').value);document.getElementById('mealServings').value=r?.servings||2};document.getElementById('mealRecipe').onchange();document.getElementById('mealModal').classList.add('open')}
+document.getElementById('newRecipe').onclick=()=>openRecipe();document.getElementById('newMeal').onclick=()=>openMeal();
+document.getElementById('recipeForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('recipeId').value||uid();const name=document.getElementById('recipeName').value.trim(),ingredients=document.getElementById('recipeIngredients').value.trim();if(ingredients.split('\n').filter(x=>x.trim()).length!==parseIngredients(ingredients).length){alert('Revisa los ingredientes: escribe una línea por ingrediente, por ejemplo 2 unidades huevos.');return}const servings=Number(document.getElementById('recipeServings').value);if(!Number.isInteger(servings)||servings<1||servings>30){alert('Indica entre 1 y 30 comensales.');return}const r={id,name,ingredients,servings,premade:false};db.recipes=db.recipes.filter(x=>x.id!==id);db.recipes.push(r);saveDB();closeModal(document.getElementById('recipeModal'));render()};
+document.getElementById('mealForm').onsubmit=e=>{e.preventDefault();const day=Number(document.getElementById('mealDay').value),type=document.getElementById('mealType').value,recipeId=document.getElementById('mealRecipe').value;db.meals=db.meals.filter(x=>!(x.day===day&&x.type===type));const servings=Number(document.getElementById('mealServings').value);if(!Number.isInteger(servings)||servings<1||servings>30){alert('Indica entre 1 y 30 personas.');return}db.meals.push({id:uid(),day,type,recipeId,servings});db.bought={};saveDB();closeModal(document.getElementById('mealModal'));render()};
+document.getElementById('planning').addEventListener('click',e=>{const p=e.target.closest('[data-plan-day]');if(p)openMeal(Number(p.dataset.planDay),p.dataset.planType);const rm=e.target.closest('[data-remove-meal]');if(rm){db.meals=db.meals.filter(x=>x.id!==rm.dataset.removeMeal);db.bought={};saveDB();render()}const er=e.target.closest('[data-edit-recipe]');if(er){const r=db.recipes.find(x=>x.id===er.dataset.editRecipe);openRecipe(r?.premade?{...r,id:'',name:r.name+' (mi versión)'}:r)}const dr=e.target.closest('[data-delete-recipe]');if(dr&&premadeIds.has(dr.dataset.deleteRecipe)){alert('Las recetas preparadas no se eliminan, pero puedes editarlas y guardarlas como personalizadas.');return}if(dr&&confirm('¿Eliminar esta receta?')){db.recipes=db.recipes.filter(x=>x.id!==dr.dataset.deleteRecipe);db.meals=db.meals.filter(x=>x.recipeId!==dr.dataset.deleteRecipe);db.bought={};saveDB();render()}});
+document.getElementById('shoppingList').onchange=e=>{if(e.target.matches('[data-bought]')){db.bought[e.target.dataset.bought]=e.target.checked;saveDB();render()}};
+document.getElementById('clearWeek').onclick=()=>{if(confirm('¿Vaciar el menú de la semana?')){db.meals=[];db.bought={};saveDB();render()}};
+document.getElementById('copyShopping').onclick=async()=>{const lines=computeShopping().filter(x=>x.missing>0&&!db.bought[x.key]).map(x=>`☐ ${x.name}: ${x.missing} ${x.unit}`);const t=lines.length?lines.join('\n'):'No falta nada para el menú semanal';try{await navigator.clipboard.writeText(t);alert('Lista copiada')}catch(e){prompt('Copia la lista:',t)}};
 let qrScanner=null, scannerBusy=false;
 async function startCamera(){
  const statusEl=document.getElementById('scanStatus');
@@ -238,6 +310,7 @@ async function stopCamera(){
  const scanner=qrScanner;qrScanner=null;
  if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}try{scanner.clear()}catch(e){}}
 }
+document.getElementById('barcodePhoto').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;const statusEl=document.getElementById('scanStatus');statusEl.textContent='Analizando la fotografía…';if(!window.Html5Qrcode){statusEl.textContent='El lector no se ha cargado. Comprueba la conexión a Internet.';return}await stopCamera();let photoScanner;try{photoScanner=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A]});const code=await photoScanner.scanFile(file,true);await photoScanner.clear();lookupBarcode(code)}catch(err){statusEl.textContent='No se pudo leer el código de la foto. Prueba con más luz, sin reflejos y encuadrando todo el código.';try{await photoScanner?.clear()}catch(x){}}};
 document.getElementById('manualLookup').onclick=async()=>{const code=document.getElementById('manualBarcode').value.trim();if(code){await stopCamera();lookupBarcode(code)}};
 async function lookupBarcode(code){
  const statusEl=document.getElementById('scanStatus');statusEl.textContent='Buscando producto…';
@@ -249,7 +322,7 @@ async function lookupBarcode(code){
  }catch(e){statusEl.textContent='No se pudo consultar la base de datos. Puedes registrarlo manualmente.'}
 }
 render();
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=4').catch(()=>{});
 </script>
 </body>
 </html>

@@ -115,6 +115,7 @@ textarea{width:100%;min-height:95px;border:1px solid var(--line);border-radius:1
 </div>
 <div class="notice">El código de barras identifica el producto, pero normalmente no incluye la fecha impresa en el envase.</div>
 <button class="primary" style="width:100%;margin-top:8px" type="submit">Guardar producto</button>
+<button class="dangerbtn" style="width:100%;margin-top:10px;padding:13px" type="button" id="deleteProductBtn" hidden>🗑️ Eliminar este alimento</button>
 </form>
 </div></div>
 
@@ -273,7 +274,7 @@ function iconFor(product){
  for(const [pattern,emoji] of rules)if(pattern.test(name))return emoji;
  return '🛒';
 }
-function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar">•••</button></article>`}
+function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar ${esc(p.name)}">•••</button><button class="dangerbtn" data-delete="${p.id}" aria-label="Eliminar ${esc(p.name)}" title="Eliminar alimento">🗑️</button></article>`}
 function render(){
  renderPlanning();
  const products=[...db.products].sort((a,b)=>a.date.localeCompare(b.date));
@@ -294,18 +295,34 @@ function render(){
  document.getElementById('welcome').textContent=db.profile.person?`Hola, ${db.profile.person}. Esto es lo que tienes en casa.`:'Tu despensa, al día.';
 }
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));render();window.scrollTo(0,0)}
-function openProduct(p){pendingShoppingKey=null;document.getElementById('shoppingAddNote')?.remove();document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('pName').value=p?.name||'';document.getElementById('pIcon').value=p?.icon||'';renderIconPicker();document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
+function openProduct(p){pendingShoppingKey=null;document.getElementById('shoppingAddNote')?.remove();document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('deleteProductBtn').hidden=!p?.id;document.getElementById('pName').value=p?.name||'';document.getElementById('pIcon').value=p?.icon||'';renderIconPicker();document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
 function closeModal(el){el.classList.remove('open');if(el.id==='productModal')pendingShoppingKey=null}
 document.addEventListener('click',e=>{
  const v=e.target.closest('[data-view]');if(v)showView(v.dataset.view);
  const go=e.target.closest('[data-go]');if(go)showView(go.dataset.go);
  const f=e.target.closest('[data-filter]');if(f){activeZone=f.dataset.filter;render()}
  const zg=e.target.closest('[data-zonego]');if(zg){activeZone=zg.dataset.zonego;showView('products')}
+ const del=e.target.closest('[data-delete]');if(del){deleteProduct(del.dataset.delete);return}
  const ed=e.target.closest('[data-edit]');if(ed){const p=db.products.find(x=>x.id===ed.dataset.edit);if(p)openProduct(p)}
  if(e.target.matches('[data-close]')){closeModal(e.target.closest('.modal'));stopCamera()}
 });
+async function deleteProduct(id){
+ const p=db.products.find(x=>x.id===id);if(!p)return;
+ if(!confirm('¿Eliminar «'+p.name+'» de tu inventario? Esta acción también lo eliminará de tu cuenta sincronizada.'))return;
+ // Delete from Supabase first to prevent another device restoring the item.
+ if(currentUser&&p.remoteId){
+  if(!supa){alert('No hay conexión con tu cuenta. Inténtalo de nuevo.');return}
+  const {error}=await supa.from('pantry_items').delete().eq('id',p.remoteId).eq('user_id',currentUser.id);
+  if(error){alert('No se pudo eliminar de la nube: '+error.message+'\nNo hemos borrado el alimento.');return}
+  remoteProducts=remoteProducts.filter(x=>x.id!==p.remoteId);
+ }
+ db.products=db.products.filter(x=>x.id!==id);
+ saveDB();closeModal(document.getElementById('productModal'));render();
+ syncMessage('Alimento eliminado correctamente.');
+}
+document.getElementById('deleteProductBtn').onclick=()=>deleteProduct(document.getElementById('editId').value);
 document.getElementById('addBtn').onclick=()=>openProduct();
-document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim(),icon:document.getElementById('pIcon').value};if(id){db.products=db.products.map(x=>x.id===id?p:x)}else db.products.push(p);if(pendingShoppingKey){db.bought[pendingShoppingKey]=true;pendingShoppingKey=null;}saveDB();closeModal(document.getElementById('productModal'));render();syncCloud()};
+document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim(),icon:document.getElementById('pIcon').value};if(id){db.products=db.products.map(x=>x.id===id?{...x,...p}:x)}else db.products.push(p);if(pendingShoppingKey){db.bought[pendingShoppingKey]=true;pendingShoppingKey=null;}saveDB();closeModal(document.getElementById('productModal'));render();syncCloud()};
 document.getElementById('search').addEventListener('input',render);
 document.getElementById('saveProfile').onclick=()=>{db.profile.person=document.getElementById('personName').value.trim();db.profile.household=document.getElementById('householdName').value.trim();saveDB();render();alert('Perfil guardado')};
 document.getElementById('profileBtn').onclick=()=>showView('settings');
@@ -393,7 +410,7 @@ async function lookupBarcode(code){
 }
 render();
 initializeAuth();
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=10').catch(()=>{});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=10.2').catch(()=>{});
 </script>
 </body>
 </html>

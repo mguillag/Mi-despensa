@@ -1,0 +1,9 @@
+{
+  "name": "Mi despensa",
+  "short_name": "Despensa",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f5ef",
+  "theme_color": "#405b48",
+  "description": "Gestiona tus productos y fechas de caducidad."
+}

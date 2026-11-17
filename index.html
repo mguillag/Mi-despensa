@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#405b48">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Mi despensa</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--green:#405b48;--green-dark:#2f4637;--pale:#e9efe8;--ink:#26342b;--muted:#738075;--bg:#f5f5ef;--white:#fff;--amber:#b87932;--red:#b54d43;--line:#e5e8e1;--shadow:0 8px 28px #26342b10}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}.app{max-width:760px;margin:auto;min-height:100dvh;padding:env(safe-area-inset-top) 16px calc(90px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:22px 2px 16px}.brand{font-family:Georgia,serif;font-size:29px;font-weight:700;letter-spacing:-.7px;color:var(--green-dark)}.sub{font-size:12px;color:var(--muted);margin-top:3px}.avatar{border:0;border-radius:50%;width:42px;height:42px;background:var(--pale);color:var(--green);font-weight:700}
+h1{font-size:23px;margin:8px 0 5px}h2{font-size:17px;margin:0}.muted{color:var(--muted)}.small{font-size:12px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}.stat{background:var(--white);padding:14px 12px;border-radius:16px;box-shadow:var(--shadow)}.stat b{display:block;font-size:25px;color:var(--green)}.stat span{font-size:11px;color:var(--muted)}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px}.linkbtn{border:0;background:none;color:var(--green);font-weight:700;font-size:13px}
+.priority,.product,.panel{background:var(--white);border-radius:16px;padding:14px;box-shadow:var(--shadow)}.priority-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.priority-row:last-child{border:0}.product-list{display:grid;gap:10px}.product{display:flex;align-items:center;gap:12px}.food-icon{width:44px;height:44px;flex:0 0 44px;border-radius:13px;background:var(--pale);display:grid;place-items:center;font-size:22px}.product-main{min-width:0;flex:1}.product-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.product-meta{font-size:12px;color:var(--muted);margin-top:4px}.pill{font-size:11px;font-weight:700;border-radius:99px;padding:6px 9px;background:var(--pale);color:var(--green);white-space:nowrap}.pill.warn{background:#fff0dc;color:#986020}.pill.danger{background:#fbe8e5;color:var(--red)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.primary,.secondary{border:0;border-radius:14px;padding:14px 12px;font-weight:700}.primary{background:var(--green);color:white}.secondary{background:var(--pale);color:var(--green)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}.navinner{max-width:760px;width:100%;display:grid;grid-template-columns:repeat(4,1fr)}.navbtn{border:0;background:none;color:var(--muted);padding:7px 2px;font-size:10px;display:grid;gap:4px;justify-items:center}.navbtn .ico{font-size:19px}.navbtn.active{color:var(--green);font-weight:800}
+.view{display:none}.view.active{display:block}.toolbar{display:flex;gap:8px;overflow:auto;padding:3px 0 10px}.chip{border:1px solid var(--line);border-radius:99px;background:white;padding:8px 12px;font-size:12px;white-space:nowrap;color:var(--muted)}.chip.active{background:var(--green);border-color:var(--green);color:white}
+.field{display:grid;gap:6px;margin:12px 0}.field label{font-size:12px;font-weight:700;color:var(--muted)}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:12px;color:var(--ink);outline-color:var(--green)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formgrid .field{margin:4px 0}.full{grid-column:1/-1}
+.modal{position:fixed;inset:0;background:#14201866;display:none;align-items:flex-end;justify-content:center;z-index:10;padding:12px}.modal.open{display:flex}.sheet{background:var(--bg);border-radius:22px 22px 16px 16px;padding:20px;width:min(100%,620px);max-height:92dvh;overflow:auto}.sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.close{border:0;background:var(--pale);color:var(--green);border-radius:50%;width:34px;height:34px;font-size:20px}.empty{text-align:center;padding:34px 18px;color:var(--muted)}.empty .big{font-size:36px;margin-bottom:8px}.notice{padding:12px;border-radius:12px;background:#fff4e5;color:#80541f;font-size:12px;line-height:1.45;margin:12px 0}.profileline{display:flex;gap:8px;align-items:center}.profileline input{flex:1}.dangerbtn{background:#fbe8e5;color:var(--red);border:0;border-radius:10px;padding:9px 11px;font-size:12px;font-weight:700}
+@media(min-width:600px){.app{padding-left:24px;padding-right:24px}.modal{align-items:center}.sheet{border-radius:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div><div class="brand">Mi despensa</div><div class="sub">Lo que tienes en casa, bajo control</div></div><button class="avatar" id="profileBtn" aria-label="Perfil">☺</button></header>
+
+<section id="home" class="view active">
+<h1>Hola 👋</h1><div class="muted small" id="welcome">Tu despensa, al día.</div>
+<div class="stats">
+ <div class="stat"><b id="totalCount">0</b><span>Productos</span></div>
+ <div class="stat"><b id="soonCount">0</b><span>Por caducar</span></div>
+ <div class="stat"><b id="lowCount">0</b><span>Unidades bajas</span></div>
+</div>
+<div class="actions"><button class="primary" id="scanBtn">▦ Escanear producto</button><button class="secondary" id="addBtn">＋ Añadir producto</button></div>
+<div class="section-head"><h2>Prioridad de consumo</h2><button class="linkbtn" data-go="products">Ver todo</button></div>
+<div class="priority" id="priorityList"></div>
+<div class="section-head"><h2>Mis zonas</h2></div>
+<div class="toolbar" id="zoneShortcuts"></div>
+<div class="notice">Consejo: registra cada lote por separado si tiene una fecha distinta. Así podrás consumir primero el que caduca antes.</div>
+</section>
+
+<section id="products" class="view">
+<h1>Mi inventario</h1><p class="muted small">Busca y filtra los productos de esta despensa.</p>
+<div class="field"><input id="search" placeholder="Buscar producto…"></div>
+<div class="toolbar" id="zoneFilters"></div>
+<div class="product-list" id="productList"></div>
+</section>
+
+<section id="alerts" class="view">
+<h1>Caducidades</h1><p class="muted small">Productos ordenados por fecha, para que sepas qué consumir primero.</p>
+<div class="product-list" id="alertList"></div>
+</section>
+
+<section id="settings" class="view">
+<h1>Mi perfil y ajustes</h1>
+<div class="panel">
+ <div class="field"><label>Nombre de esta despensa</label><input id="householdName" placeholder="Ej. Casa"></div>
+ <div class="field"><label>Nombre de la persona</label><input id="personName" placeholder="Ej. Ana"></div>
+ <button class="primary" id="saveProfile">Guardar perfil</button>
+</div>
+<div class="section-head"><h2>Avisos de caducidad</h2></div>
+<div class="panel small">En esta primera versión, los avisos se muestran dentro de la aplicación al abrirla. Los avisos automáticos aunque la app esté cerrada se añadirán en una fase posterior.</div>
+<div class="section-head"><h2>Datos</h2></div>
+<div class="panel">
+ <p class="small muted">Los datos de esta versión se guardan en este navegador y dispositivo. Todavía no se sincronizan entre familiares.</p>
+ <button class="secondary" id="exportBtn">Exportar copia de seguridad (JSON)</button>
+ <div style="height:8px"></div>
+ <button class="dangerbtn" id="clearBtn">Borrar todos los productos</button>
+</div>
+</section>
+</div>
+
+<nav><div class="navinner">
+<button class="navbtn active" data-view="home"><span class="ico">⌂</span>Inicio</button>
+<button class="navbtn" data-view="products"><span class="ico">▤</span>Inventario</button>
+<button class="navbtn" data-view="alerts"><span class="ico">◷</span>Caducidades</button>
+<button class="navbtn" data-view="settings"><span class="ico">⚙</span>Ajustes</button>
+</div></nav>
+
+<div class="modal" id="productModal"><div class="sheet">
+<div class="sheethead"><h2 id="modalTitle">Añadir producto</h2><button class="close" data-close>×</button></div>
+<form id="productForm">
+<input type="hidden" id="editId">
+<div class="field"><label>Nombre del producto *</label><input id="pName" required placeholder="Ej. Garbanzos cocidos"></div>
+<div class="formgrid">
+<div class="field"><label>Cantidad *</label><input id="pQty" type="number" min="1" step="1" value="1" required></div>
+<div class="field"><label>Unidad</label><select id="pUnit"><option>unidades</option><option>paquetes</option><option>latas</option><option>tarros</option><option>botellas</option><option>kg</option><option>g</option><option>litros</option><option>ml</option></select></div>
+<div class="field"><label>Zona *</label><select id="pZone"><option>Despensa</option><option>Nevera</option><option>Congelador</option><option>Despensa emergencia</option></select></div>
+<div class="field"><label>Fecha *</label><input id="pDate" type="date" required></div>
+<div class="field full"><label>Tipo de fecha</label><select id="pDateType"><option value="caducidad">Fecha de caducidad</option><option value="preferente">Consumo preferente</option><option value="apertura">Fecha orientativa de consumo tras apertura</option></select></div>
+<div class="field full"><label>Código de barras (opcional)</label><input id="pBarcode" inputmode="numeric" placeholder="EAN / UPC"></div>
+</div>
+<div class="notice">El código de barras identifica el producto, pero normalmente no incluye la fecha impresa en el envase.</div>
+<button class="primary" style="width:100%;margin-top:8px" type="submit">Guardar producto</button>
+</form>
+</div></div>
+
+<div class="modal" id="scanModal"><div class="sheet">
+<div class="sheethead"><h2>Escanear código</h2><button class="close" data-close>×</button></div>
+<div id="scannerArea" class="panel" style="text-align:center">
+ <video id="video" playsinline style="width:100%;max-height:260px;object-fit:cover;border-radius:12px;background:#17231b"></video>
+ <p class="small muted">Centra el código de barras dentro de la cámara.</p>
+ <div id="scanStatus" class="small muted">Preparando cámara…</div>
+</div>
+<div class="field"><label>O introduce el código manualmente</label><input id="manualBarcode" inputmode="numeric" placeholder="Código de barras"></div>
+<button class="primary" id="manualLookup" style="width:100%">Buscar producto</button>
+<div class="small muted" style="margin-top:10px">La búsqueda usa Open Food Facts. Si el producto no aparece, podrás registrarlo manualmente.</div>
+</div></div>
+
+<script>
+const KEY='miDespensa.v1';
+const zones=['Despensa','Nevera','Congelador','Despensa emergencia'];
+let db=loadDB(), activeZone='Todas', stream=null, detector=null;
+function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],profile:{person:'',household:''}}}catch(e){return {products:[],profile:{person:'',household:''}}}}
+function saveDB(){localStorage.setItem(KEY,JSON.stringify(db))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function daysTo(date){const a=new Date();a.setHours(0,0,0,0);const b=new Date(date+'T00:00:00');return Math.ceil((b-a)/86400000)}
+function status(p){const d=daysTo(p.date);if(d<0)return {label:`Hace ${Math.abs(d)} días`,cls:'danger',d};if(d===0)return {label:'Hoy',cls:'danger',d};if(d<=3)return {label:`${d} días`,cls:'danger',d};if(d<=7)return {label:`${d} días`,cls:'warn',d};return {label:`${d} días`,cls:'',d}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmt(date){return new Date(date+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}
+function iconFor(zone){return zone==='Nevera'?'🥬':zone==='Congelador'?'🧊':'🥫'}
+function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p.zone)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar">•••</button></article>`}
+function render(){
+ const products=[...db.products].sort((a,b)=>a.date.localeCompare(b.date));
+ const soon=products.filter(p=>daysTo(p.date)<=7&&daysTo(p.date)>=0);
+ document.getElementById('totalCount').textContent=products.reduce((n,p)=>n+Number(p.qty),0);
+ document.getElementById('soonCount').textContent=soon.reduce((n,p)=>n+Number(p.qty),0);
+ document.getElementById('lowCount').textContent=products.filter(p=>Number(p.qty)<=1).length;
+ const pri=document.getElementById('priorityList');
+ pri.innerHTML=products.length?products.slice(0,4).map(p=>`<div class="priority-row"><div><b>${esc(p.name)}</b><div class="small muted">${esc(p.zone)} · ${p.qty} ${esc(p.unit)}</div></div><span class="pill ${status(p).cls}">${status(p).label}</span></div>`).join(''):'<div class="empty"><div class="big">🧺</div>Aún no tienes productos.<br>Añade el primero para empezar.</div>';
+ document.getElementById('zoneShortcuts').innerHTML=zones.map(z=>`<button class="chip" data-zonego="${z}">${z}</button>`).join('');
+ document.getElementById('zoneFilters').innerHTML=['Todas',...zones].map(z=>`<button class="chip ${activeZone===z?'active':''}" data-filter="${z}">${z}</button>`).join('');
+ const q=(document.getElementById('search')?.value||'').toLowerCase();
+ const filtered=products.filter(p=>(activeZone==='Todas'||p.zone===activeZone)&&p.name.toLowerCase().includes(q));
+ document.getElementById('productList').innerHTML=filtered.length?filtered.map(productCard).join(''):'<div class="empty"><div class="big">🔎</div>No hay productos en esta selección.</div>';
+ document.getElementById('alertList').innerHTML=products.length?products.map(productCard).join(''):'<div class="empty"><div class="big">🌿</div>No hay fechas registradas todavía.</div>';
+ document.getElementById('personName').value=db.profile.person||'';
+ document.getElementById('householdName').value=db.profile.household||'';
+ document.getElementById('welcome').textContent=db.profile.person?`Hola, ${db.profile.person}. Esto es lo que tienes en casa.`:'Tu despensa, al día.';
+}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));render();window.scrollTo(0,0)}
+function openProduct(p){document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('pName').value=p?.name||'';document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
+function closeModal(el){el.classList.remove('open')}
+document.addEventListener('click',e=>{
+ const v=e.target.closest('[data-view]');if(v)showView(v.dataset.view);
+ const go=e.target.closest('[data-go]');if(go)showView(go.dataset.go);
+ const f=e.target.closest('[data-filter]');if(f){activeZone=f.dataset.filter;render()}
+ const zg=e.target.closest('[data-zonego]');if(zg){activeZone=zg.dataset.zonego;showView('products')}
+ const ed=e.target.closest('[data-edit]');if(ed){const p=db.products.find(x=>x.id===ed.dataset.edit);if(p)openProduct(p)}
+ if(e.target.matches('[data-close]')){closeModal(e.target.closest('.modal'));stopCamera()}
+});
+document.getElementById('addBtn').onclick=()=>openProduct();
+document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim()};if(id){db.products=db.products.map(x=>x.id===id?p:x)}else db.products.push(p);saveDB();closeModal(document.getElementById('productModal'));render()};
+document.getElementById('search').addEventListener('input',render);
+document.getElementById('saveProfile').onclick=()=>{db.profile.person=document.getElementById('personName').value.trim();db.profile.household=document.getElementById('householdName').value.trim();saveDB();render();alert('Perfil guardado')};
+document.getElementById('profileBtn').onclick=()=>showView('settings');
+document.getElementById('clearBtn').onclick=()=>{if(confirm('¿Seguro que quieres borrar todos los productos de esta despensa?')){db.products=[];saveDB();render()}};
+document.getElementById('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-despensa-copia.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('scanBtn').onclick=()=>{document.getElementById('scanModal').classList.add('open');startCamera()};
+async function startCamera(){
+ const video=document.getElementById('video'), statusEl=document.getElementById('scanStatus');
+ if(!navigator.mediaDevices?.getUserMedia){statusEl.textContent='La cámara no está disponible aquí. Introduce el código manualmente.';return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=stream;await video.play();
+  if('BarcodeDetector' in window){try{detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});statusEl.textContent='Apunta al código de barras…';scanLoop()}catch(e){statusEl.textContent='No se pudo iniciar el lector. Introduce el código manualmente.'}}
+  else statusEl.textContent='Este navegador no incorpora lector automático. Introduce el código manualmente.';
+ }catch(e){statusEl.textContent='No se pudo acceder a la cámara. Comprueba los permisos o introduce el código manualmente.'}
+}
+async function scanLoop(){if(!stream||!detector)return;try{const codes=await detector.detect(document.getElementById('video'));if(codes.length){document.getElementById('manualBarcode').value=codes[0].rawValue;stopCamera();lookupBarcode(codes[0].rawValue);return}}catch(e){}requestAnimationFrame(scanLoop)}
+function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}detector=null}
+document.getElementById('manualLookup').onclick=()=>{const code=document.getElementById('manualBarcode').value.trim();if(code)lookupBarcode(code)};
+async function lookupBarcode(code){
+ const statusEl=document.getElementById('scanStatus');statusEl.textContent='Buscando producto…';
+ try{
+  const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json');const data=await r.json();
+  const prod=data.product;
+  if(data.status===1&&prod){document.getElementById('scanModal').classList.remove('open');stopCamera();openProduct({name:prod.product_name_es||prod.product_name||prod.generic_name||'',qty:1,unit:'unidades',zone:'Despensa',date:'',dateType:'caducidad',barcode:code});}
+  else {statusEl.textContent='No encontramos ese producto. Puedes añadirlo manualmente.';document.getElementById('scanModal').classList.remove('open');stopCamera();openProduct({name:'',qty:1,unit:'unidades',zone:'Despensa',date:'',dateType:'caducidad',barcode:code})}
+ }catch(e){statusEl.textContent='No se pudo consultar la base de datos. Puedes registrarlo manualmente.'}
+}
+render();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

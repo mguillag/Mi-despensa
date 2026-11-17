@@ -113,7 +113,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-const KEY='miDespensa.v1';
+const KEY='miDespensa.v1'; // Mantener esta clave para conservar los productos guardados
 const zones=['Despensa','Nevera','Congelador','Despensa emergencia'];
 let db=loadDB(), activeZone='Todas', stream=null, detector=null;
 function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],profile:{person:'',household:''}}}catch(e){return {products:[],profile:{person:'',household:''}}}}
@@ -123,8 +123,61 @@ function daysTo(date){const a=new Date();a.setHours(0,0,0,0);const b=new Date(da
 function status(p){const d=daysTo(p.date);if(d<0)return {label:`Hace ${Math.abs(d)} días`,cls:'danger',d};if(d===0)return {label:'Hoy',cls:'danger',d};if(d<=3)return {label:`${d} días`,cls:'danger',d};if(d<=7)return {label:`${d} días`,cls:'warn',d};return {label:`${d} días`,cls:'',d}}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmt(date){return new Date(date+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}
-function iconFor(zone){return zone==='Nevera'?'🥬':zone==='Congelador'?'🧊':'🥫'}
-function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p.zone)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar">•••</button></article>`}
+// Iconos basados en el alimento, nunca en la zona de almacenamiento.
+function iconFor(product){
+ const name=String(product?.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const rules=[
+  [/ketchup|catsup|catchup|tomate frito|salsa de tomate|tomate triturado|tomate concentrado/, '🍅'],
+  [/mayonesa|mahonesa|alioli|mostaza|salsa barbacoa|salsa bbq|salsa cesar|salsa rosa|salsa picante|salsa de soja|salsa/, '🥫'],
+  [/atun|bonito|sardina|salmon|merluza|bacalao|anchoa|caballa|pescado|sepia|calamar|gamba|langostino|marisco/, '🐟'],
+  [/leche|batido|kefir|yogur|yoghurt|cuajada/, '🥛'],
+  [/queso|mozzarella|parmesano|cheddar|emmental|gouda|brie|philadelphia/, '🧀'],
+  [/huevo/, '🥚'],
+  [/mantequilla|margarina/, '🧈'],
+  [/pan|tostada|biscote|baguette|mollete|picos/, '🍞'],
+  [/arroz|risotto/, '🍚'],
+  [/pasta|macarron|espagueti|spaghetti|tallarin|fideo|lasana|ravioli|canelon/, '🍝'],
+  [/patata|patatas|pure de patata|boniato|batata/, '🥔'],
+  [/platano|banana/, '🍌'],
+  [/manzana/, '🍎'],
+  [/pera/, '🍐'],
+  [/naranja|mandarina|clementina/, '🍊'],
+  [/limon|lima/, '🍋'],
+  [/fresa|frambuesa|frutos rojos/, '🍓'],
+  [/uva/, '🍇'],
+  [/sandia/, '🍉'],
+  [/melon/, '🍈'],
+  [/pina|anan[aá]s/, '🍍'],
+  [/aguacate/, '🥑'],
+  [/tomate/, '🍅'],
+  [/zanahoria/, '🥕'],
+  [/cebolla|ajo|puerro/, '🧅'],
+  [/brocoli|coliflor/, '🥦'],
+  [/lechuga|ensalada|espinaca|acelga|rucula|canonigo/, '🥬'],
+  [/pepino|calabacin|berenjena|pimiento|verdura|vegetal/, '🥒'],
+  [/pollo|pavo|pechuga/, '🍗'],
+  [/ternera|vacuno|cerdo|lomo|filete|hamburguesa|carne|jamon|chorizo|salchicha|bacon|fuet|embutido/, '🥩'],
+  [/pizza/, '🍕'],
+  [/aceite|vinagre/, '🫒'],
+  [/azucar|miel|mermelada|sirope/, '🍯'],
+  [/cafe|capsula de cafe/, '☕'],
+  [/te verde|te negro|infusion|manzanilla/, '🫖'],
+  [/agua|refresco|cola|gaseosa|zumo|jugo|bebida/, '🥤'],
+  [/galleta|cookie|bizcocho|magdalena/, '🍪'],
+  [/chocolate|cacao|nutella|nocilla/, '🍫'],
+  [/helado|sorbete/, '🍨'],
+  [/cereales|avena|muesli|granola/, '🥣'],
+  [/harina|levadura|maicena/, '🌾'],
+  [/garbanzo|lenteja|alubia|judia blanca|frijol|legumbre/, '🫘'],
+  [/maiz|palomita/, '🌽'],
+  [/almendra|nuez|pistacho|avellana|cacahuete|fruto seco/, '🥜'],
+  [/sal|pimienta|especia|oregano|canela|comino/, '🧂'],
+  [/conserva|lata|tarro/, '🥫']
+ ];
+ for(const [pattern,emoji] of rules)if(pattern.test(name))return emoji;
+ return '🛒';
+}
+function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.dateType==='preferente'?'Consumo pref.':'Caduca'} ${fmt(p.date)}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar">•••</button></article>`}
 function render(){
  const products=[...db.products].sort((a,b)=>a.date.localeCompare(b.date));
  const soon=products.filter(p=>daysTo(p.date)<=7&&daysTo(p.date)>=0);

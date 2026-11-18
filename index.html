@@ -17,7 +17,7 @@ h1{font-size:23px;margin:8px 0 5px}h2{font-size:17px;margin:0}.muted{color:var(-
 .section-head{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px}.linkbtn{border:0;background:none;color:var(--green);font-weight:700;font-size:13px}
 .priority,.product,.panel{background:var(--white);border-radius:16px;padding:14px;box-shadow:var(--shadow)}.priority-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.priority-row:last-child{border:0}.product-list{display:grid;gap:10px}.product{display:flex;align-items:center;gap:12px}.food-icon{width:44px;height:44px;flex:0 0 44px;border-radius:13px;background:var(--pale);display:grid;place-items:center;font-size:22px}.product-main{min-width:0;flex:1}.product-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.product-meta{font-size:12px;color:var(--muted);margin-top:4px}.pill{font-size:11px;font-weight:700;border-radius:99px;padding:6px 9px;background:var(--pale);color:var(--green);white-space:nowrap}.pill.warn{background:#fff0dc;color:#986020}.pill.danger{background:#fbe8e5;color:var(--red)}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.primary,.secondary{border:0;border-radius:14px;padding:14px 12px;font-weight:700}.primary{background:var(--green);color:white}.secondary{background:var(--pale);color:var(--green)}
-nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}.navinner{max-width:760px;width:100%;display:grid;grid-template-columns:repeat(5,1fr)}.navbtn{border:0;background:none;color:var(--muted);padding:7px 2px;font-size:10px;display:grid;gap:4px;justify-items:center}.navbtn .ico{font-size:19px}.navbtn.active{color:var(--green);font-weight:800}
+nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}.navinner{max-width:760px;width:100%;display:grid;grid-template-columns:repeat(6,1fr)}.navbtn{border:0;background:none;color:var(--muted);padding:7px 2px;font-size:10px;display:grid;gap:4px;justify-items:center}.navbtn .ico{font-size:19px}.navbtn.active{color:var(--green);font-weight:800}
 .view{display:none}.view.active{display:block}.toolbar{display:flex;gap:8px;overflow:auto;padding:3px 0 10px}.chip{border:1px solid var(--line);border-radius:99px;background:white;padding:8px 12px;font-size:12px;white-space:nowrap;color:var(--muted)}.chip.active{background:var(--green);border-color:var(--green);color:white}
 .field{display:grid;gap:6px;margin:12px 0}.field label{font-size:12px;font-weight:700;color:var(--muted)}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:12px;color:var(--ink);outline-color:var(--green)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formgrid .field{margin:4px 0}.full{grid-column:1/-1}
 .modal{position:fixed;inset:0;background:#14201866;display:none;align-items:flex-end;justify-content:center;z-index:10;padding:12px}.modal.open{display:flex}.sheet{background:var(--bg);border-radius:22px 22px 16px 16px;padding:20px;width:min(100%,620px);max-height:92dvh;overflow:auto}.sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.close{border:0;background:var(--pale);color:var(--green);border-radius:50%;width:34px;height:34px;font-size:20px}.empty{text-align:center;padding:34px 18px;color:var(--muted)}.empty .big{font-size:36px;margin-bottom:8px}.notice{padding:12px;border-radius:12px;background:#fff4e5;color:#80541f;font-size:12px;line-height:1.45;margin:12px 0}.profileline{display:flex;gap:8px;align-items:center}.profileline input{flex:1}.dangerbtn{background:#fbe8e5;color:var(--red);border:0;border-radius:10px;padding:9px 11px;font-size:12px;font-weight:700}
@@ -70,6 +70,20 @@ textarea{width:100%;min-height:95px;border:1px solid var(--line);border-radius:1
 <div class="section-head"><h2>Lista de la compra 🛒</h2><button class="linkbtn" id="copyShopping">Copiar lista</button></div>
 <div class="panel"><div id="shoppingList"></div><p class="note">La lista combina recetas y mínimos, y descuenta las cantidades de Despensa, Nevera y Congelador. La Despensa emergencia queda excluida y no se utiliza para el menú semanal. Solo compara unidades compatibles (g/kg, ml/l o la misma unidad). Revisa los nombres y cantidades antes de comprar. Al marcar un ingrediente como comprado, podrás registrarlo en tu inventario con o sin fecha de caducidad. La despensa de emergencia no se descuenta del menú semanal.</p></div>
 </section>
+<section id="compare" class="view">
+<h1>Comparar supermercados 🛒</h1><p class="muted small">Compara tu lista de compra con Mercadona, Alcampo Sant Boi y Ametller Origen. Los precios solo se muestran si han sido consultados o introducidos: nunca se inventan.</p>
+<div class="panel"><div class="section-head"><h2>Productos pendientes</h2><button class="secondary" id="compareRefresh">Actualizar lista</button></div><div id="compareItems"></div></div>
+<div class="panel"><h2>Consultar precios</h2><p class="note">Las webs pueden impedir la consulta automática desde esta aplicación. Abre el catálogo de cada tienda para comprobar el precio actual y anótalo aquí. El comparador calcula las cestas al instante.</p>
+<div class="actions"><a class="secondary" href="https://tienda.mercadona.es/" target="_blank" rel="noopener">Mercadona ↗</a><a class="secondary" href="https://www.compraonline.alcampo.es/" target="_blank" rel="noopener">Alcampo ↗</a><a class="secondary" href="https://www.ametllerorigen.com/es/online" target="_blank" rel="noopener">Ametller ↗</a></div>
+<p class="note"><b>Alcampo:</b> selecciona Sant Boi de Llobregat en su web. La aplicación no puede verificar automáticamente qué tienda has seleccionado.</p>
+<div class="field"><label>Producto de tu lista</label><select id="compareProduct"></select></div>
+<div class="field"><label>Supermercado</label><select id="compareStore"><option value="Mercadona">Mercadona</option><option value="Alcampo Sant Boi">Alcampo Sant Boi</option><option value="Ametller Origen">Ametller Origen</option></select></div>
+<div class="field"><label>Tipo</label><select id="compareKind"><option value="exact">Producto exacto</option><option value="alternative">Alternativa equivalente</option></select></div>
+<div class="field"><label>Nombre encontrado (marca y formato)</label><input id="compareFound" placeholder="Ej. Arroz redondo 1 kg"></div>
+<div class="formgrid"><div class="field"><label>Precio (€) de la cantidad necesaria</label><input id="comparePrice" type="number" min="0" step="0.01" placeholder="Ej. 2.35"></div><div class="field"><label>Enlace al producto (opcional)</label><input id="compareLink" type="url" placeholder="https://..."></div></div>
+<button class="primary" id="compareSave">Guardar precio comprobado</button><p class="note">Indica el precio total para la cantidad que necesitas, incluyendo los envases necesarios. Los importes quedan guardados solo en este dispositivo y asociados a tu cuenta.</p></div>
+<div class="panel"><div class="section-head"><h2>Resultados</h2><button class="linkbtn" id="compareClear">Borrar precios</button></div><div id="compareResults"></div></div>
+</section>
 <section id="settings" class="view">
 <h1>Mi perfil y ajustes</h1>
 <div class="panel">
@@ -98,6 +112,7 @@ textarea{width:100%;min-height:95px;border:1px solid var(--line);border-radius:1
 <button class="navbtn" data-view="products"><span class="ico">▤</span>Inventario</button>
 <button class="navbtn" data-view="alerts"><span class="ico">◷</span>Caducidades</button>
 <button class="navbtn" data-view="planning"><span class="ico">🍽️</span>Menú</button>
+<button class="navbtn" data-view="compare"><span class="ico">€</span>Comparar</button>
 <button class="navbtn" data-view="settings"><span class="ico">⚙</span>Ajustes</button>
 </div></nav>
 
@@ -280,6 +295,7 @@ function iconFor(product){
 function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.date?(p.dateType==='preferente'?'Consumo pref.':'Caduca')+' '+fmt(p.date):'Sin caducidad'} · ${esc(p.category||'Alimentación')}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar ${esc(p.name)}">•••</button><button class="dangerbtn" data-delete="${p.id}" aria-label="Eliminar ${esc(p.name)}" title="Eliminar alimento">🗑️</button></article>`}
 function render(){
  renderPlanning();
+ renderCompare();
  const products=[...db.products].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
  const soon=products.filter(p=>p.date&&daysTo(p.date)<=7&&daysTo(p.date)>=0);
  document.getElementById('totalCount').textContent=products.reduce((n,p)=>n+(p.unit==='unidades'?Math.max(0,Number(p.qty)||0):1),0);
@@ -297,6 +313,27 @@ function render(){
  document.getElementById('householdName').value=db.profile.household||'';renderMinimums();
  document.getElementById('welcome').textContent=db.profile.person?`Hola, ${db.profile.person}. Esto es lo que tienes en casa.`:'Tu despensa, al día.';
 }
+
+// Comparador V12: precios verificados por el usuario. No simula acceso a webs ni precios en directo.
+const COMPARE_STORES=['Mercadona','Alcampo Sant Boi','Ametller Origen'];
+function compareKey(){return 'mi-despensa-compare-v12-'+(currentUser?.id||'local')}
+function compareRead(){try{return JSON.parse(localStorage.getItem(compareKey()))||{}}catch(e){return {}}}
+function compareWrite(data){localStorage.setItem(compareKey(),JSON.stringify(data))}
+function comparePending(){return computeShopping().filter(x=>x.missing>0&&!db.bought[x.key])}
+function compareMoney(n){return Number(n).toLocaleString('es-ES',{style:'currency',currency:'EUR'})}
+function renderCompare(){
+ const items=comparePending(), list=document.getElementById('compareItems');if(!list)return;
+ list.innerHTML=items.length?items.map(x=>`<div class="priority-row"><span><b>${esc(x.name)}</b><div class="note">${x.missing} ${esc(x.unit)}</div></span></div>`).join(''):'<p class="note">Tu lista de compra está vacía. Añade platos al menú o configura mínimos.</p>';
+ const sel=document.getElementById('compareProduct'),old=sel.value;sel.innerHTML=items.map(x=>`<option value="${esc(x.key)}">${esc(x.name)} · ${x.missing} ${esc(x.unit)}</option>`).join('');if(items.some(x=>x.key===old))sel.value=old;
+ const prices=compareRead(),res=document.getElementById('compareResults');if(!items.length){res.innerHTML='<p class="note">No hay productos para comparar.</p>';return}
+ const summaries=COMPARE_STORES.map(store=>{let total=0,found=0;const lines=items.map(item=>{const opts=['exact','alternative'].map(kind=>prices[JSON.stringify([item.key,store,kind])]).filter(x=>x&&Number.isFinite(Number(x.price)));const best=opts.sort((a,b)=>Number(a.price)-Number(b.price))[0];if(best){found++;total+=Number(best.price)}return {item,best}});return {store,total,found,lines}});
+ const complete=summaries.filter(x=>x.found===items.length).sort((a,b)=>a.total-b.total);
+ res.innerHTML=(complete.length?`<p><b>🏆 Cesta completa más barata: ${esc(complete[0].store)} — ${compareMoney(complete[0].total)}</b></p>`:'<p class="note">Todavía no hay precios para toda la cesta en una misma tienda. No podemos determinar cuál es la más barata.</p>')+summaries.map(s=>`<div class="panel" style="margin-top:12px"><b>${esc(s.store)}</b><p class="small">${s.found}/${items.length} productos con precio · ${s.found===items.length?'Total: '+compareMoney(s.total):'Subtotal conocido: '+compareMoney(s.total)+' (no comparable)'}</p>${s.lines.map(({item,best})=>`<div class="priority-row"><span><b>${esc(item.name)}</b><div class="note">${best?esc(best.found||'Producto')+' · '+(best.kind==='exact'?'Exacto':'Alternativa')+' · comprobado '+esc(best.date):'Precio no disponible'}</div></span><span>${best?compareMoney(best.price):'—'}</span></div>`).join('')}</div>`).join('');
+}
+document.getElementById('compareSave').onclick=()=>{const key=document.getElementById('compareProduct').value,store=document.getElementById('compareStore').value,kind=document.getElementById('compareKind').value,price=Number(document.getElementById('comparePrice').value),raw=document.getElementById('comparePrice').value,found=document.getElementById('compareFound').value.trim(),link=document.getElementById('compareLink').value.trim();if(!key||raw===''||!Number.isFinite(price)||price<0){alert('Selecciona un producto e introduce un precio válido.');return}if(link&&!/^https:\/\//i.test(link)){alert('El enlace debe comenzar por https://');return}const data=compareRead();data[JSON.stringify([key,store,kind])]={price,kind,found,link,date:new Date().toLocaleString('es-ES')};compareWrite(data);document.getElementById('comparePrice').value='';renderCompare()};
+document.getElementById('compareClear').onclick=()=>{if(confirm('¿Borrar todos los precios guardados en este dispositivo?')){localStorage.removeItem(compareKey());renderCompare()}};
+document.getElementById('compareRefresh').onclick=()=>renderCompare();
+
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));render();window.scrollTo(0,0)}
 function openProduct(p){pendingShoppingKey=null;document.getElementById('shoppingAddNote')?.remove();document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('deleteProductBtn').hidden=!p?.id;document.getElementById('pName').value=p?.name||'';document.getElementById('pCategory').value=p?.category||'Alimentación';document.getElementById('catalogSearch').value='';document.getElementById('catalogResults').hidden=true;document.getElementById('pIcon').value=p?.icon||'';renderIconPicker();document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
 function closeModal(el){el.classList.remove('open');if(el.id==='productModal')pendingShoppingKey=null}
@@ -424,7 +461,7 @@ async function lookupBarcode(code){
 }
 render();
 initializeAuth();
-if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=11').catch(()=>{});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=12').catch(()=>{});
 </script>
 </body>
 </html>

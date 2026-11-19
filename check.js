@@ -1,0 +1,337 @@
+
+const KEY='miDespensa.v1'; // Mantener esta clave para conservar los productos guardados
+const zones=['Despensa','Nevera','Congelador','Despensa emergencia'];
+let db=loadDB(), activeZone='Todas', stream=null, detector=null;
+function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],profile:{person:'',household:''}}}catch(e){return {products:[],profile:{person:'',household:''}}}}
+function saveDB(){if(currentUser)localStorage.setItem(userKey(currentUser.id),JSON.stringify(db));else localStorage.setItem(KEY,JSON.stringify(db))}
+const SUPABASE_URL='https://ecawgmamnpcsskixanyf.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable_V6YQxPXtopALEMMVjQ89kg_F7OtAAw7';
+let supa=null,currentUser=null,remoteProducts=[],syncing=false;
+let pendingShoppingKey=null;
+const userKey=id=>'miDespensa.account.'+id;
+const emptyDB=()=>({products:[],profile:{person:'',household:''},recipes:[],meals:[],bought:{},minimums:[]});
+const syncMessage=s=>{const el=document.getElementById('syncStatus');if(el)el.textContent=s};
+function remoteToLocal(r,previous){return {id:previous?.id||r.id,remoteId:r.id,name:r.name,qty:Number(r.quantity),unit:r.unit,zone:r.zone,date:r.expiry_date||'',dateType:previous?.dateType||'caducidad',barcode:previous?.barcode||'',icon:previous?.icon||'',category:previous?.category||'Alimentación'}}
+async function fetchCloud(){if(!currentUser)return;const {data,error}=await supa.from('pantry_items').select('*').eq('user_id',currentUser.id).order('created_at');if(error)throw error;remoteProducts=data||[];const old=new Map(db.products.filter(x=>x.remoteId).map(x=>[x.remoteId,x]));db.products=remoteProducts.map(r=>remoteToLocal(r,old.get(r.id)));saveDB();render();syncMessage('Sincronizado: '+db.products.length+' productos en tu cuenta.');}
+async function syncCloud(){if(!currentUser||syncing)return;syncing=true;syncMessage('Sincronizando productos…');try{
+ const byId=new Map(remoteProducts.map(x=>[x.id,x]));const localIds=new Set();
+ for(const p of db.products){if(!p.remoteId)p.remoteId=crypto.randomUUID();localIds.add(p.remoteId);const row={id:p.remoteId,user_id:currentUser.id,name:p.name,quantity:Number(p.qty),unit:p.unit,zone:p.zone,expiry_date:p.date||null,updated_at:new Date().toISOString()};const {error}=await supa.from('pantry_items').upsert(row,{onConflict:'id'});if(error)throw error;}
+ for(const r of remoteProducts){if(!localIds.has(r.id)){const {error}=await supa.from('pantry_items').delete().eq('id',r.id).eq('user_id',currentUser.id);if(error)throw error;}}
+ saveDB();const {data,error}=await supa.from('pantry_items').select('*').eq('user_id',currentUser.id);if(error)throw error;remoteProducts=data||[];syncMessage('Productos sincronizados correctamente.');
+ }catch(e){syncMessage('No se pudo sincronizar: '+e.message+'. Tus cambios siguen guardados en este dispositivo.');}finally{syncing=false}}
+async function signInUser(user){currentUser=user;db=(()=>{try{return JSON.parse(localStorage.getItem(userKey(user.id)))||emptyDB()}catch(e){return emptyDB()}})();db.products||=[];db.profile||={person:'',household:''};db.recipes||=[];db.meals||=[];db.bought||={};db.minimums||=[];ensurePremade();document.getElementById('authGate').hidden=true;document.getElementById('accountEmail').textContent=user.email||'';render();try{await fetchCloud()}catch(e){syncMessage('No se pudieron cargar los productos: '+e.message+'. Comprueba tu conexión antes de editar.')}}
+async function initializeAuth(){if(!window.supabase){document.getElementById('authMessage').textContent='No se pudo cargar Supabase. Comprueba tu conexión a Internet.';return;}supa=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'mi-despensa-auth'}});const {data,error}=await supa.auth.getSession();if(error){document.getElementById('authMessage').textContent='No se pudo recuperar la sesión: '+error.message;return;}if(data?.session?.user)await signInUser(data.session.user);supa.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){currentUser=null;db=emptyDB();document.getElementById('authGate').hidden=false;render();}else if(event==='SIGNED_IN'&&session?.user&&currentUser?.id!==session.user.id){setTimeout(()=>{if(currentUser?.id!==session.user.id)signInUser(session.user)},0)}});}
+document.getElementById('authForm').onsubmit=async e=>{e.preventDefault();if(!supa)return;const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;const {data,error}=await supa.auth.signInWithPassword({email,password});if(error){document.getElementById('authMessage').textContent=error.message;return;}await signInUser(data.user)};
+document.getElementById('signUp').onclick=async()=>{if(!supa)return;const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;if(!email||password.length<6){document.getElementById('authMessage').textContent='Introduce un correo y una contraseña de al menos 6 caracteres.';return;}const {data,error}=await supa.auth.signUp({email,password,emailRedirectTo:location.origin+location.pathname});document.getElementById('authMessage').textContent=error?error.message:'Revisa tu correo y confirma la cuenta. Después inicia sesión.';if(data?.session?.user)await signInUser(data.session.user)};
+document.getElementById('logoutBtn').onclick=async()=>{if(!confirm('¿Cerrar sesión en este dispositivo?'))return;await supa.auth.signOut();currentUser=null;db=emptyDB();document.getElementById('authGate').hidden=false;render()};
+document.getElementById('refreshCloud').onclick=async()=>{if(!currentUser)return;if(!confirm('Se volverán a cargar los productos de la nube. Los cambios locales pendientes podrían perderse. ¿Continuar?'))return;try{await fetchCloud()}catch(e){syncMessage('Error: '+e.message)}};
+document.getElementById('importOld').onclick=async()=>{if(!currentUser)return;let old;try{old=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!old?.products?.length){alert('No hay productos de una versión anterior en este navegador. Si los tienes en otro móvil, deberás importarlos desde ese móvil.');return}if(!confirm('Se añadirán '+old.products.length+' productos antiguos a esta cuenta. Hazlo solo una vez para evitar duplicados. ¿Continuar?'))return;const ids=new Set(db.products.map(p=>[p.name,p.date,p.qty,p.unit,p.zone].join('|')));let count=0;for(const p of old.products){const sig=[p.name,p.date,p.qty,p.unit,p.zone].join('|');if(ids.has(sig))continue;db.products.push({...p,id:crypto.randomUUID(),remoteId:crypto.randomUUID()});ids.add(sig);count++}saveDB();render();await syncCloud();alert('Se han añadido '+count+' productos. La copia antigua sigue guardada en este navegador.')};
+
+db.recipes ||= []; db.meals ||= []; db.bought ||= {}; db.minimums ||= [];
+const PREMADE_RECIPES=[
+['Tortilla de patatas',2,'4 unidades huevos\n500 g patatas\n100 g cebolla\n30 ml aceite de oliva'],
+['Macarrones con tomate',2,'200 g macarrones\n250 g tomate triturado\n100 g cebolla\n20 ml aceite de oliva'],
+['Arroz con pollo',2,'180 g arroz\n300 g pollo\n100 g pimiento\n100 g cebolla\n20 ml aceite de oliva'],
+['Ensalada de atún',2,'150 g lechuga\n2 latas atun\n200 g tomate\n20 ml aceite de oliva'],
+['Pollo al horno con patatas',2,'400 g pollo\n500 g patatas\n20 ml aceite de oliva'],
+['Lentejas con verduras',4,'320 g lentejas\n200 g zanahoria\n200 g patatas\n150 g cebolla\n30 ml aceite de oliva'],
+['Crema de calabacín',2,'500 g calabacin\n200 g patatas\n100 g cebolla\n20 ml aceite de oliva'],
+['Salmón con arroz',2,'300 g salmon\n160 g arroz\n20 ml aceite de oliva'],
+['Pizza de jamón y queso',2,'1 unidades base de pizza\n150 g tomate triturado\n150 g queso mozzarella\n100 g jamon cocido'],
+['Bocadillo de pavo y queso',2,'2 unidades panecillos\n100 g pavo\n80 g queso'],
+['Pasta con atún',2,'200 g pasta\n2 latas atun\n200 g tomate triturado'],
+['Revuelto de champiñones',2,'4 unidades huevos\n250 g champinones\n15 ml aceite de oliva'],
+['Hamburguesa con patatas',2,'2 unidades hamburguesas\n2 unidades pan de hamburguesa\n400 g patatas'],
+['Garbanzos con espinacas',2,'400 g garbanzos cocidos\n250 g espinacas\n100 g cebolla\n20 ml aceite de oliva'],
+['Pechuga de pollo con boniato',2,'350 g pechuga de pollo\n400 g boniato\n20 ml aceite de oliva']
+];
+PREMADE_RECIPES.push(
+["Macarrones con carne",2,"200 g macarrones\n250 g carne picada\n250 g tomate triturado\n100 g cebolla\n20 ml aceite de oliva"],
+["Crema de calabaza",2,"500 g calabaza\n150 g patatas\n100 g cebolla\n20 ml aceite de oliva"],
+["Judías verdes con patatas",2,"400 g judias verdes\n400 g patatas\n20 ml aceite de oliva"],
+["Filete de ternera",2,"350 g filete de ternera\n15 ml aceite de oliva"],
+["Pollo a la plancha",2,"350 g pechuga de pollo\n15 ml aceite de oliva"],
+["Dorada al horno",2,"2 unidades dorada\n300 g patatas\n100 g cebolla\n20 ml aceite de oliva"],
+["Lubina al horno",2,"2 unidades lubina\n300 g patatas\n100 g cebolla\n20 ml aceite de oliva"],
+["Lasaña casera",2,"250 g placas de lasana\n350 g carne picada\n300 g tomate triturado\n300 ml leche\n30 g harina\n100 g queso rallado"],
+["Pollo estofado",2,"400 g pollo\n300 g patatas\n150 g zanahoria\n100 g cebolla\n200 ml caldo de pollo"],
+["Carne estofada",2,"400 g ternera para guisar\n300 g patatas\n150 g zanahoria\n100 g cebolla\n250 ml caldo de carne"],
+["Tagliatelle a la carbonara",2,"200 g tagliatelle\n100 g guanciale\n3 unidades huevos\n60 g queso pecorino"],
+["Pizza casera",2,"300 g harina\n180 ml agua\n7 g levadura\n150 g tomate triturado\n150 g mozzarella"],
+["Tartar de salmón",2,"300 g salmon fresco apto para consumo crudo\n1 unidades aguacate\n20 ml salsa de soja\n1 unidades limon"],
+["Croquetas",2,"300 ml leche\n50 g harina\n50 g mantequilla\n150 g pollo cocido\n2 unidades huevos\n100 g pan rallado"],
+["Sopa",2,"600 ml caldo de pollo\n100 g fideos\n100 g zanahoria"]
+);
+PREMADE_RECIPES.push(...[["Tostadas con tomate", 2, "2 unidades rebanadas de pan\n150 g tomate\n10 ml aceite de oliva"], ["Tostadas con aguacate", 2, "2 unidades rebanadas de pan\n1 unidades aguacate\n1 unidades limon"], ["Tostadas con pavo y queso", 2, "2 unidades rebanadas de pan\n80 g pavo en lonchas\n60 g queso"], ["Huevos revueltos", 2, "4 unidades huevos\n15 ml aceite de oliva"], ["Tortilla francesa", 2, "4 unidades huevos\n10 ml aceite de oliva"], ["Tortilla de espinacas", 2, "4 unidades huevos\n100 g espinacas\n10 ml aceite de oliva"], ["Gachas de avena y plátano", 2, "100 g avena\n300 ml leche\n2 unidades plátano"], ["Avena nocturna con yogur", 2, "100 g avena\n250 g yogur natural\n150 ml leche"], ["Porridge de cacao", 2, "100 g avena\n300 ml leche\n15 g cacao en polvo"], ["Yogur con avena y miel", 2, "250 g yogur natural\n70 g avena\n20 g miel"], ["Yogur con fresas", 2, "250 g yogur natural\n150 g fresas"], ["Tortitas de plátano", 2, "2 unidades plátano\n2 unidades huevos\n80 g harina de avena"], ["Tortitas clásicas", 2, "150 g harina de trigo\n2 unidades huevos\n200 ml leche\n10 g levadura"], ["Crepes", 2, "120 g harina de trigo\n2 unidades huevos\n250 ml leche"], ["Sándwich mixto", 2, "4 unidades pan de molde\n80 g jamón cocido\n80 g queso"], ["Bocadillo de tortilla", 2, "2 unidades panecillos\n3 unidades huevos\n10 ml aceite de oliva"], ["Tostadas francesas", 2, "4 unidades pan de molde\n2 unidades huevos\n150 ml leche"], ["Bol de yogur y plátano", 2, "250 g yogur griego\n2 unidades plátano\n30 g avena"], ["Huevos con champiñones", 2, "4 unidades huevos\n200 g champiñones\n15 ml aceite de oliva"], ["Tostadas con queso fresco", 2, "2 unidades rebanadas de pan\n120 g queso fresco"], ["Batido de plátano", 2, "2 unidades plátano\n350 ml leche"], ["Batido de fresas", 2, "250 g fresas\n300 ml leche"], ["Batido de cacao", 2, "350 ml leche\n25 g cacao en polvo"], ["Smoothie de plátano y avena", 2, "2 unidades plátano\n250 ml leche\n40 g avena"], ["Smoothie de fresa y plátano", 2, "150 g fresas\n1 unidades plátano\n200 ml leche"], ["Smoothie verde", 2, "100 g espinacas\n1 unidades plátano\n250 ml agua mineral"], ["Limonada casera", 2, "3 unidades limon\n750 ml agua mineral\n60 g azúcar"], ["Zumo de naranja", 2, "6 unidades naranja"], ["Café con leche", 2, "2 unidades café\n300 ml leche"], ["Café helado", 2, "2 unidades café\n250 ml leche\n100 g hielo"], ["Chocolate caliente", 2, "400 ml leche\n40 g chocolate negro"], ["Té con limón", 2, "2 unidades bolsitas de té\n1 unidades limon\n400 ml agua mineral"], ["Batido de yogur y miel", 2, "250 g yogur natural\n200 ml leche\n20 g miel"], ["Agua con limón", 2, "750 ml agua mineral\n1 unidades limon"], ["Sándwich de pavo", 2, "4 unidades pan de molde\n120 g pavo en lonchas"], ["Sándwich de atún", 2, "4 unidades pan de molde\n2 latas atún en lata\n30 g mayonesa"], ["Bocadillo de jamón", 2, "2 unidades panecillos\n100 g jamón cocido"], ["Bocadillo de queso", 2, "2 unidades panecillos\n120 g queso"], ["Tostadas con crema de cacahuete", 2, "2 unidades rebanadas de pan\n40 g crema de cacahuete"], ["Tostadas con mermelada", 2, "2 unidades rebanadas de pan\n35 g mermelada"], ["Yogur con chocolate", 2, "250 g yogur griego\n30 g chocolate negro"], ["Manzana con yogur", 2, "2 unidades manzana\n200 g yogur natural"], ["Plátano con crema de cacahuete", 2, "2 unidades plátano\n35 g crema de cacahuete"], ["Mini quesadillas", 2, "2 unidades tortillas de trigo\n100 g queso rallado"], ["Hummus rápido", 2, "250 g garbanzos cocidos\n20 ml aceite de oliva\n1 unidades limon"], ["Tostada de aguacate y huevo", 2, "2 unidades rebanadas de pan\n1 unidades aguacate\n2 unidades huevos"], ["Rollitos de pavo y queso", 2, "120 g pavo en lonchas\n100 g queso"], ["Bol de fruta con yogur", 2, "1 unidades plátano\n1 unidades manzana\n200 g yogur natural"], ["Bizcocho de yogur", 2, "3 unidades huevos\n1 unidades yogur natural\n200 g harina de trigo\n150 g azúcar\n100 ml aceite de girasol\n15 g levadura"], ["Bizcocho de chocolate", 2, "3 unidades huevos\n180 g harina de trigo\n150 g azúcar\n100 g chocolate negro\n120 g mantequilla"], ["Carrot cake", 2, "250 g zanahoria\n200 g harina de trigo\n3 unidades huevos\n150 g azúcar\n120 ml aceite de girasol\n10 g levadura"], ["Brownie", 2, "200 g chocolate negro\n150 g mantequilla\n150 g azúcar\n3 unidades huevos\n90 g harina de trigo"], ["Galletas de mantequilla", 2, "200 g harina de trigo\n100 g mantequilla\n80 g azúcar\n1 unidades huevos"], ["Galletas de avena y plátano", 2, "2 unidades plátano\n120 g avena"], ["Magdalenas", 2, "3 unidades huevos\n200 g harina de trigo\n150 g azúcar\n120 ml leche\n100 ml aceite de girasol"], ["Tortitas dulces", 2, "150 g harina de trigo\n2 unidades huevos\n200 ml leche\n30 g azúcar"], ["Flan de huevo", 2, "4 unidades huevos\n500 ml leche\n100 g azúcar"], ["Arroz con leche", 2, "120 g arroz redondo\n700 ml leche\n90 g azúcar\n1 unidades limon"], ["Natillas caseras", 2, "500 ml leche\n4 unidades huevos\n80 g azúcar\n25 g maicena"], ["Crema pastelera", 2, "500 ml leche\n4 unidades huevos\n100 g azúcar\n40 g maicena"], ["Tarta de queso al horno", 2, "500 g queso crema\n3 unidades huevos\n150 g azúcar\n200 ml nata para montar"], ["Mousse de chocolate", 2, "200 g chocolate negro\n4 unidades huevos\n40 g azúcar"], ["Manzana asada", 2, "4 unidades manzana\n20 g miel\n5 g canela"], ["Compota de manzana", 2, "4 unidades manzana\n100 ml agua mineral\n20 g azúcar"], ["Fresas con yogur", 2, "300 g fresas\n250 g yogur griego"], ["Trufas de chocolate", 2, "200 g chocolate negro\n100 ml nata para montar"], ["Torrijas", 2, "6 unidades pan de molde\n400 ml leche\n2 unidades huevos\n70 g azúcar"], ["Hojaldre de manzana", 2, "1 unidades lámina de hojaldre\n3 unidades manzana\n40 g azúcar"], ["Bizcocho de plátano", 2, "3 unidades plátano\n2 unidades huevos\n180 g harina de trigo\n80 g azúcar\n10 g levadura"], ["Galletas con chocolate", 2, "200 g harina de trigo\n100 g mantequilla\n90 g azúcar\n100 g chocolate negro\n1 unidades huevos"]]);
+
+PREMADE_RECIPES.push(...[
+['Pollo a la plancha',1,'180 g pollo\n5 ml aceite de oliva'],['Pavo a la plancha',1,'180 g pavo\n5 ml aceite de oliva'],['Lomo a la plancha',1,'180 g lomo\n5 ml aceite de oliva'],['Ternera a la plancha',1,'180 g ternera\n5 ml aceite de oliva'],['Salmón a la plancha',1,'180 g salmon\n5 ml aceite de oliva'],['Lubina a la plancha',1,'200 g lubina\n5 ml aceite de oliva'],['Merluza a la plancha',1,'200 g merluza\n5 ml aceite de oliva'],
+['Espaguetis carbonara',2,'200 g espaguetis\n120 g huevos\n80 g queso\n100 g panceta'],['Pasta boloñesa',2,'200 g pasta\n250 g carne picada\n250 g tomate triturado\n100 g cebolla'],['Pasta con pesto',2,'200 g pasta\n60 g pesto\n30 g queso'],['Pasta cuatro quesos',2,'200 g pasta\n120 g queso\n100 ml nata'],['Pasta Alfredo',2,'200 g pasta\n120 ml nata\n50 g queso\n20 g mantequilla'],
+['Pizza margarita casera',2,'250 g harina\n150 g tomate\n150 g queso mozzarella\n10 ml aceite de oliva'],['Pizza barbacoa',2,'250 g harina\n180 g pollo\n100 g queso mozzarella\n60 g salsa barbacoa'],['Hamburguesa casera de ternera',1,'150 g ternera\n90 g pan\n30 g lechuga\n50 g tomate'],['Hamburguesa de pollo',1,'150 g pollo\n90 g pan\n30 g lechuga'],['Patatas airfryer',2,'400 g patatas\n10 ml aceite de oliva'],['Boniato airfryer',2,'400 g boniato\n10 ml aceite de oliva'],
+['Sopa de pollo y fideos',2,'200 g pollo\n80 g fideos\n100 g zanahoria\n500 ml agua'],['Sopa de verduras',2,'200 g zanahoria\n200 g calabacin\n100 g cebolla\n600 ml agua'],['Tostada de aguacate y salmón',1,'80 g pan\n80 g aguacate\n60 g salmon'],['Café con leche semidesnatada',1,'150 ml leche\n1 unidades cafe'],['Té verde',1,'250 ml agua'],['Té negro',1,'250 ml agua'],['Manzanilla',1,'250 ml agua'],['Tila relajante',1,'250 ml agua'],['Rooibos',1,'250 ml agua'],['Infusión de menta',1,'250 ml agua'],
+['Lasaña casera',4,'400 g carne picada\n250 g tomate triturado\n200 g pasta\n250 ml leche\n80 g queso'],['Lasaña congelada (etiqueta pendiente)',1,'350 g lasaña congelada'],['Canelones caseros',4,'350 g carne picada\n200 g pasta\n250 ml leche\n100 g queso'],['Canelones congelados (etiqueta pendiente)',1,'350 g canelones congelados'],['Croquetas congeladas (etiqueta pendiente)',1,'180 g croquetas congeladas'],
+['Bocadillo de jamón serrano',1,'100 g pan\n70 g jamon serrano'],['Bocadillo de pavo',1,'100 g pan\n80 g pavo'],['Bocadillo de tortilla francesa',1,'100 g pan\n2 unidades huevos\n5 ml aceite de oliva'],['Bocadillo de lomo y queso',1,'100 g pan\n100 g lomo\n30 g queso'],['Bocadillo de salchichas de pagès',1,'100 g pan\n150 g salchichas'],['Bocadillo de pollo',1,'100 g pan\n120 g pollo'],['Tostada de tomate y aceite',1,'80 g pan\n80 g tomate\n10 ml aceite de oliva'],
+['Ensalada de arroz y atún',2,'160 g arroz\n150 g atun\n150 g tomate\n100 g lechuga'],['Pollo al curry con arroz',2,'350 g pollo\n160 g arroz\n100 g cebolla\n100 ml leche'],['Albóndigas con tomate',2,'350 g carne picada\n250 g tomate triturado\n80 g cebolla'],['Tortilla de calabacín',2,'4 unidades huevos\n250 g calabacin\n15 ml aceite de oliva'],['Crema de zanahoria',2,'450 g zanahoria\n150 g patatas\n100 g cebolla'],['Pechuga de pavo con boniato',2,'350 g pavo\n400 g boniato\n15 ml aceite de oliva']
+]);
+const premadeIds=new Set(PREMADE_RECIPES.map((_,i)=>'base-'+i));
+function ensurePremade(){for(let i=0;i<PREMADE_RECIPES.length;i++){const [name,servings,ingredients]=PREMADE_RECIPES[i];if(!db.recipes.some(r=>r.id==='base-'+i))db.recipes.push({id:'base-'+i,name,servings,ingredients,premade:true})}}
+ensurePremade();
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function daysTo(date){const a=new Date();a.setHours(0,0,0,0);const b=new Date(date+'T00:00:00');return Math.ceil((b-a)/86400000)}
+function status(p){if(!p.date)return {label:'Sin fecha',cls:'',d:Infinity};const d=daysTo(p.date);if(d<0)return {label:`Hace ${Math.abs(d)} días`,cls:'danger',d};if(d===0)return {label:'Hoy',cls:'danger',d};if(d<=3)return {label:`${d} días`,cls:'danger',d};if(d<=7)return {label:`${d} días`,cls:'warn',d};return {label:`${d} días`,cls:'',d}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmt(date){if(!date)return 'Sin fecha';return new Date(date+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}
+// Iconos basados en el alimento, nunca en la zona de almacenamiento.
+function iconFor(product){
+ if(product?.icon)return product.icon;
+ const name=String(product?.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const rules=[
+ [/ketchup|ketchu|tomate frito|salsa de tomate/, '🍅'],
+ [/mayonesa|mostaza|salsa|alioli/, '🫙'],
+ [/patata|boniato/, '🥔'],
+ [/huevo/, '🥚'],
+ [/queso/, '🧀'],
+ [/leche|yogur|nata/, '🥛'],
+ [/atun|sardina|salmon|merluza/, '🐟'],
+ [/arroz/, '🍚'],
+ [/pasta|macarron|espagueti/, '🍝'],
+ [/pollo|pavo/, '🍗'],
+  [/ketchup|catsup|catchup|tomate frito|salsa de tomate|tomate triturado|tomate concentrado/, '🍅'],
+  [/mayonesa|mahonesa|alioli|mostaza|salsa barbacoa|salsa bbq|salsa cesar|salsa rosa|salsa picante|salsa de soja|salsa/, '🥫'],
+  [/atun|bonito|sardina|salmon|merluza|bacalao|anchoa|caballa|pescado|sepia|calamar|gamba|langostino|marisco/, '🐟'],
+  [/leche|batido|kefir|yogur|yoghurt|cuajada/, '🥛'],
+  [/queso|mozzarella|parmesano|cheddar|emmental|gouda|brie|philadelphia/, '🧀'],
+  [/huevo/, '🥚'],
+  [/mantequilla|margarina/, '🧈'],
+  [/pan|tostada|biscote|baguette|mollete|picos/, '🍞'],
+  [/arroz|risotto/, '🍚'],
+  [/pasta|macarron|espagueti|spaghetti|tallarin|fideo|lasana|ravioli|canelon/, '🍝'],
+  [/patata|patatas|pure de patata|boniato|batata/, '🥔'],
+  [/platano|banana/, '🍌'],
+  [/manzana/, '🍎'],
+  [/pera/, '🍐'],
+  [/naranja|mandarina|clementina/, '🍊'],
+  [/limon|lima/, '🍋'],
+  [/fresa|frambuesa|frutos rojos/, '🍓'],
+  [/uva/, '🍇'],
+  [/sandia/, '🍉'],
+  [/melon/, '🍈'],
+  [/pina|anan[aá]s/, '🍍'],
+  [/aguacate/, '🥑'],
+  [/tomate/, '🍅'],
+  [/zanahoria/, '🥕'],
+  [/cebolla|ajo|puerro/, '🧅'],
+  [/brocoli|coliflor/, '🥦'],
+  [/lechuga|ensalada|espinaca|acelga|rucula|canonigo/, '🥬'],
+  [/pepino|calabacin|berenjena|pimiento|verdura|vegetal/, '🥒'],
+  [/pollo|pavo|pechuga/, '🍗'],
+  [/ternera|vacuno|cerdo|lomo|filete|hamburguesa|carne|jamon|chorizo|salchicha|bacon|fuet|embutido/, '🥩'],
+  [/pizza/, '🍕'],
+  [/aceite|vinagre/, '🫒'],
+  [/azucar|miel|mermelada|sirope/, '🍯'],
+  [/cafe|capsula de cafe/, '☕'],
+  [/te verde|te negro|infusion|manzanilla/, '🫖'],
+  [/agua|refresco|cola|gaseosa|zumo|jugo|bebida/, '🥤'],
+  [/galleta|cookie|bizcocho|magdalena/, '🍪'],
+  [/chocolate|cacao|nutella|nocilla/, '🍫'],
+  [/helado|sorbete/, '🍨'],
+  [/cereales|avena|muesli|granola/, '🥣'],
+  [/harina|levadura|maicena/, '🌾'],
+  [/garbanzo|lenteja|alubia|judia blanca|frijol|legumbre/, '🫘'],
+  [/maiz|palomita/, '🌽'],
+  [/almendra|nuez|pistacho|avellana|cacahuete|fruto seco/, '🥜'],
+  [/sal|pimienta|especia|oregano|canela|comino/, '🧂'],
+  [/conserva|lata|tarro/, '🥫']
+ ];
+ for(const [pattern,emoji] of rules)if(pattern.test(name))return emoji;
+ return '🛒';
+}
+function productCard(p){const s=status(p);return `<article class="product"><div class="food-icon">${iconFor(p)}</div><div class="product-main"><div class="product-name">${esc(p.name)}</div><div class="product-meta">${esc(p.zone)} · ${p.qty} ${esc(p.unit)} · ${p.date?(p.dateType==='preferente'?'Consumo pref.':'Caduca')+' '+fmt(p.date):'Sin caducidad'} · ${esc(p.category||'Alimentación')}</div></div><span class="pill ${s.cls}">${s.label}</span><button class="linkbtn" data-edit="${p.id}" aria-label="Editar ${esc(p.name)}">•••</button><button class="dangerbtn" data-delete="${p.id}" aria-label="Eliminar ${esc(p.name)}" title="Eliminar alimento">🗑️</button></article>`}
+function render(){
+ renderPlanning();
+ renderNutrition();
+ const products=[...db.products].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
+ const soon=products.filter(p=>p.date&&daysTo(p.date)<=7&&daysTo(p.date)>=0);
+ document.getElementById('totalCount').textContent=products.reduce((n,p)=>n+(p.unit==='unidades'?Math.max(0,Number(p.qty)||0):1),0);
+ document.getElementById('soonCount').textContent=soon.reduce((n,p)=>n+(p.unit==='unidades'?Math.max(0,Number(p.qty)||0):1),0);
+ document.getElementById('lowCount').textContent=lowMinimums().length;
+ const pri=document.getElementById('priorityList');
+ const priority=products.filter(p=>p.date);pri.innerHTML=priority.length?priority.slice(0,4).map(p=>`<div class="priority-row"><div><b>${esc(p.name)}</b><div class="small muted">${esc(p.zone)} · ${p.qty} ${esc(p.unit)}</div></div><span class="pill ${status(p).cls}">${status(p).label}</span></div>`).join(''):'<div class="empty"><div class="big">🧺</div>Aún no tienes productos.<br>Añade el primero para empezar.</div>';
+ document.getElementById('zoneShortcuts').innerHTML=zones.map(z=>`<button class="chip" data-zonego="${z}">${z}</button>`).join('');
+ document.getElementById('zoneFilters').innerHTML=['Todas',...zones].map(z=>`<button class="chip ${activeZone===z?'active':''}" data-filter="${z}">${z}</button>`).join('');
+ const q=(document.getElementById('search')?.value||'').toLowerCase();
+ const filtered=products.filter(p=>(activeZone==='Todas'||p.zone===activeZone)&&p.name.toLowerCase().includes(q));
+ document.getElementById('productList').innerHTML=filtered.length?filtered.map(productCard).join(''):'<div class="empty"><div class="big">🔎</div>No hay productos en esta selección.</div>';
+ document.getElementById('alertList').innerHTML=products.some(p=>p.date)?products.filter(p=>p.date).map(productCard).join(''):'<div class="empty"><div class="big">🌿</div>No hay fechas registradas todavía.</div>';
+ document.getElementById('personName').value=db.profile.person||'';
+ document.getElementById('householdName').value=db.profile.household||'';renderMinimums();
+ document.getElementById('welcome').textContent=db.profile.person?`Hola, ${db.profile.person}. Esto es lo que tienes en casa.`:'Tu despensa, al día.';
+}
+
+// Nutrición V13. Estimaciones genéricas por 100 g o 100 ml; sin afirmar precisión clínica.
+const NUTRIENTS={
+ 'pollo':[110,23,0,0,1.5,0.4,0,0.15], 'pavo':[110,24,0,0,1.4,0.4,0,0.15], 'lomo':[145,21,0,0,6,2,0,0.15], 'ternera':[160,21,0,0,8,3,0,0.16], 'carne picada':[220,19,0,0,16,6,0,0.2], 'salmon':[208,20,0,0,13,3,0,0.15], 'lubina':[97,19,0,0,2,0.5,0,0.2], 'atun':[115,25,0,0,1,0.2,0,0.7], 'merluza':[82,18,0,0,1,0.2,0,0.2],
+ 'arroz':[360,7,79,0.2,0.7,0.2,1.3,0.01], 'pasta':[355,12,72,3,1.5,0.3,3,0.01], 'macarrones':[355,12,72,3,1.5,0.3,3,0.01], 'espaguetis':[355,12,72,3,1.5,0.3,3,0.01], 'fideos':[355,12,72,3,1.5,0.3,3,0.01], 'patatas':[77,2,17,0.8,0.1,0,2.2,0.01], 'boniato':[86,1.6,20,4.2,0.1,0,3,0.01], 'pan':[265,9,49,5,3.2,0.7,2.7,1.2], 'panecillos':[265,9,49,5,3.2,0.7,2.7,1.2], 'harina':[364,10,76,0.3,1,0.2,2.7,0.01], 'avena':[389,17,66,1,7,1.2,10.6,0.01],
+ 'leche':[48,3.3,4.8,4.8,1.6,1,0,0.1], 'yogur':[75,4,5,5,4,2.5,0,0.12], 'queso fresco':[170,12,3,3,12,8,0,0.7], 'queso mozzarella':[280,22,3,1,17,11,0,0.6], 'queso':[330,23,2,1,26,17,0,1.5], 'huevos':[143,13,0.7,0.4,10,3.1,0,0.35], 'mantequilla':[717,0.9,0.1,0.1,81,51,0,0.02], 'nata':[200,2,3,3,20,13,0,0.1],
+ 'aceite de oliva':[884,0,0,0,100,14,0,0], 'aceite':[884,0,0,0,100,14,0,0], 'azucar':[400,0,100,100,0,0,0,0], 'miel':[304,0.3,82,82,0,0,0.2,0],
+ 'tomate':[18,0.9,3.9,2.6,0.2,0,1.2,0.01], 'cebolla':[40,1.1,9.3,4.2,0.1,0,1.7,0.01], 'zanahoria':[41,0.9,9.6,4.7,0.2,0,2.8,0.07], 'calabaza':[26,1,6.5,2.8,0.1,0,0.5,0.01], 'calabacin':[17,1.2,3.1,2.5,0.3,0,1,0.01], 'pimiento':[26,1,6,4.2,0.3,0,2.1,0.01], 'lechuga':[15,1.4,2.9,0.8,0.2,0,1.3,0.03], 'espinacas':[23,2.9,3.6,0.4,0.4,0.1,2.2,0.2], 'champiñones':[22,3.1,3.3,2,0.3,0,1,0.01], 'aguacate':[160,2,8.5,0.7,14.7,2.1,6.7,0.02], 'platano':[89,1.1,22.8,12.2,0.3,0.1,2.6,0], 'fresas':[32,0.7,7.7,4.9,0.3,0,2,0],
+ 'lentejas':[350,25,60,2,1,0.2,11,0.01], 'garbanzos cocidos':[164,9,27,4.8,2.6,0.3,7.6,0.2], 'garbanzos':[364,19,61,11,6,0.6,17,0.02], 'jamon cocido':[110,18,2,1,3,1,0,2], 'jamon serrano':[240,30,0,0,13,4,0,5], 'salchichas':[280,12,3,1,24,9,0,2], 'hamburguesas':[230,17,4,1,17,7,0,1.2], 'croquetas':[210,7,22,2,11,3,2,1.1], 'chocolate':[540,6,58,47,31,19,7,0.1], 'cacao':[228,20,58,2,14,8,33,0.05], 'cafe':[1,0,0,0,0,0,0,0], 'te verde':[1,0,0,0,0,0,0,0], 'manzanilla':[1,0,0,0,0,0,0,0], 'agua':[0,0,0,0,0,0,0,0], 'sal':[0,0,0,0,0,0,0,100]
+};
+const NUTRI_LABELS=[['kcal','Energía','kcal'],['protein','Proteínas','g'],['carbs','Hidratos','g'],['sugars','Azúcares totales','g'],['fat','Grasas','g'],['saturated','Grasas saturadas','g'],['fiber','Fibra','g'],['salt','Sal','g']];
+const NUTRI_DEFAULT={kcal:2000,protein:100,carbs:230,sugars:50,fat:70,saturated:20,fiber:25,salt:5};
+let nutritionDays=new Set([0,1,2,3,4,5,6]);
+const nutriKey=()=> 'miDespensa.nutrition.'+(currentUser?.id||'local');
+function nutritionGoalsRead(){try{return {...NUTRI_DEFAULT,...JSON.parse(localStorage.getItem(nutriKey()))}}catch(e){return {...NUTRI_DEFAULT}}}
+function nutrientIngredient(ing){const name=norm(ing.name);const key=Object.keys(NUTRIENTS).sort((a,b)=>b.length-a.length).find(k=>name.includes(norm(k)));if(!key)return null;
+ const [q,u]=standardized(ing.qty,ing.unit);let grams=q;
+ if(u==='ml')grams=q;else if(u==='unidades'){const weights={'huevos':55,'huevo':55,'platano':120,'aguacate':150,'panecillos':90,'pan de molde':30,'salchichas':80,'hamburguesas':120,'patatas':160,'cafe':2,'te verde':2};grams=q*(Object.entries(weights).find(([n])=>name.includes(n))?.[1]||0);if(!grams)return null}
+ else if(u==='latas'||u==='paquetes'||u==='tarros'||u==='botellas')return null;
+ return NUTRIENTS[key].map(x=>x*grams/100);
+}
+function nutritionCalculate(meal){const recipe=db.recipes.find(r=>r.id===meal.recipeId);if(!recipe)return null;const ingredients=parseIngredients(recipe.ingredients),values=Array(8).fill(0),unknown=[];
+ for(const ing of ingredients){const n=nutrientIngredient(ing);if(!n){unknown.push(ing.name);continue}n.forEach((v,i)=>values[i]+=v)}
+ const portions=Math.max(1,Number(recipe.servings)||2);return {name:recipe.name,values:values.map(x=>x/portions),unknown,ingredients:ingredients.length,day:meal.day,type:meal.type};
+}
+function nutritionRenderBar(name,value,goal,unit){const pct=goal>0?Math.min(100,value/goal*100):0;return `<div style="margin:10px 0"><div style="display:flex;justify-content:space-between;gap:8px"><b class="small">${esc(name)}</b><span class="small">${value.toLocaleString('es-ES',{maximumFractionDigits:1})} / ${goal} ${unit}</span></div><div style="height:9px;background:#e7ebe8;border-radius:12px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${pct}%;background:${value>goal?'#e5a35e':'#399c76'};border-radius:12px"></div></div></div>`}
+function renderNutrition(){const panel=document.getElementById('nutrition');if(!panel)return;const goals=nutritionGoalsRead();const daysEl=document.getElementById('nutritionDays');daysEl.innerHTML=DAYS.map((d,i)=>`<button type="button" class="${nutritionDays.has(i)?'primary':'secondary'}" data-nutri-day="${i}" style="flex:1;min-width:42px">${d.slice(0,2)}</button>`).join('');
+ const selected=[...nutritionDays].sort(),meals=db.meals.filter(m=>nutritionDays.has(Number(m.day))).map(nutritionCalculate).filter(Boolean),totals=Array(8).fill(0),unknown=[];
+ for(const m of meals){m.values.forEach((x,i)=>totals[i]+=x);if(m.unknown.length)unknown.push(m.name+': '+m.unknown.join(', '))}
+ const count=selected.length||1,averages=totals.map(v=>v/count);document.getElementById('nutritionPeriod').textContent=selected.length?`${selected.length} días · ${meals.length} platos planificados · valores medios diarios por persona`:'Selecciona al menos un día';
+ document.getElementById('nutritionSummary').innerHTML=`<div style="text-align:center;padding:12px;background:#eef8f1;border-radius:16px"><div class="muted small">Energía media diaria estimada</div><div style="font-size:34px;font-weight:800;color:#247953">${Math.round(averages[0]).toLocaleString('es-ES')} kcal</div><div class="small">Objetivo: ${goals.kcal} kcal</div></div>`;
+ document.getElementById('nutritionBars').innerHTML=NUTRI_LABELS.map(([k,name,unit],i)=>nutritionRenderBar(name,averages[i],Number(goals[k])||0,unit)).join('');
+ document.getElementById('nutritionBreakdown').innerHTML=selected.map(day=>{const group=meals.filter(m=>Number(m.day)===day),v=Array(8).fill(0);group.forEach(m=>m.values.forEach((x,i)=>v[i]+=x));return `<div class="day-card" style="margin-bottom:10px"><h3>${DAYS[day]}</h3><p><b>${Math.round(v[0])} kcal</b> · Proteínas ${v[1].toFixed(1)} g · Azúcares ${v[3].toFixed(1)} g</p>${group.map(m=>`<div class="small" style="padding:5px 0;border-top:1px solid #e4e9e6">${esc(m.type)}: ${esc(m.name)} — ${Math.round(m.values[0])} kcal${m.unknown.length?' ⚠️ estimación incompleta':''}</div>`).join('')||'<p class="note">Sin platos planificados</p>'}</div>`}).join('');
+ document.getElementById('nutritionUnknown').innerHTML=unknown.length?`<p class="note"><b>Ingredientes sin calcular:</b></p><ul>${[...new Set(unknown)].map(x=>`<li class="small">${esc(x)}</li>`).join('')}</ul>`:'<p class="note">No se han detectado ingredientes desconocidos en los días seleccionados. Los valores siguen siendo aproximados.</p>';
+ const form=document.getElementById('nutritionGoals');if(!form.dataset.ready){form.innerHTML=NUTRI_LABELS.map(([k,label,unit])=>`<div class="field"><label>${label} (${unit})</label><input type="number" min="0" step="0.1" data-nutri-goal="${k}" value="${goals[k]}"></div>`).join('');form.dataset.ready='1'}
+}
+document.getElementById('nutritionDays').onclick=e=>{const b=e.target.closest('[data-nutri-day]');if(!b)return;const d=Number(b.dataset.nutriDay);nutritionDays.has(d)?nutritionDays.delete(d):nutritionDays.add(d);renderNutrition()};
+document.getElementById('nutritionAll').onclick=()=>{nutritionDays=new Set([0,1,2,3,4,5,6]);renderNutrition()};
+document.getElementById('nutritionSaveGoals').onclick=()=>{const data={};document.querySelectorAll('[data-nutri-goal]').forEach(el=>data[el.dataset.nutriGoal]=Math.max(0,Number(el.value)||0));localStorage.setItem(nutriKey(),JSON.stringify(data));renderNutrition();alert('Objetivos guardados para esta cuenta en este dispositivo')};
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));render();window.scrollTo(0,0)}
+function openProduct(p){pendingShoppingKey=null;document.getElementById('shoppingAddNote')?.remove();document.getElementById('productForm').reset();document.getElementById('editId').value=p?.id||'';document.getElementById('modalTitle').textContent=p?'Editar producto':'Añadir producto';document.getElementById('deleteProductBtn').hidden=!p?.id;document.getElementById('pName').value=p?.name||'';document.getElementById('pCategory').value=p?.category||'Alimentación';document.getElementById('catalogSearch').value='';document.getElementById('catalogResults').hidden=true;document.getElementById('pIcon').value=p?.icon||'';renderIconPicker();document.getElementById('pQty').value=p?.qty||1;document.getElementById('pUnit').value=p?.unit||'unidades';document.getElementById('pZone').value=p?.zone||'Despensa';document.getElementById('pDate').value=p?.date||'';document.getElementById('pDateType').value=p?.dateType||'caducidad';document.getElementById('pBarcode').value=p?.barcode||'';document.getElementById('productModal').classList.add('open')}
+function closeModal(el){el.classList.remove('open');if(el.id==='productModal')pendingShoppingKey=null}
+document.addEventListener('click',e=>{
+ const v=e.target.closest('[data-view]');if(v)showView(v.dataset.view);
+ const go=e.target.closest('[data-go]');if(go)showView(go.dataset.go);
+ const f=e.target.closest('[data-filter]');if(f){activeZone=f.dataset.filter;render()}
+ const zg=e.target.closest('[data-zonego]');if(zg){activeZone=zg.dataset.zonego;showView('products')}
+ const del=e.target.closest('[data-delete]');if(del){deleteProduct(del.dataset.delete);return}
+ const ed=e.target.closest('[data-edit]');if(ed){const p=db.products.find(x=>x.id===ed.dataset.edit);if(p)openProduct(p)}
+ if(e.target.matches('[data-close]')){closeModal(e.target.closest('.modal'));stopCamera()}
+});
+async function deleteProduct(id){
+ const p=db.products.find(x=>x.id===id);if(!p)return;
+ if(!confirm('¿Eliminar «'+p.name+'» de tu inventario? Esta acción también lo eliminará de tu cuenta sincronizada.'))return;
+ // Delete from Supabase first to prevent another device restoring the item.
+ if(currentUser&&p.remoteId){
+  if(!supa){alert('No hay conexión con tu cuenta. Inténtalo de nuevo.');return}
+  const {error}=await supa.from('pantry_items').delete().eq('id',p.remoteId).eq('user_id',currentUser.id);
+  if(error){alert('No se pudo eliminar de la nube: '+error.message+'\nNo hemos borrado el alimento.');return}
+  remoteProducts=remoteProducts.filter(x=>x.id!==p.remoteId);
+ }
+ db.products=db.products.filter(x=>x.id!==id);
+ saveDB();closeModal(document.getElementById('productModal'));render();
+ syncMessage('Alimento eliminado correctamente.');
+}
+document.getElementById('deleteProductBtn').onclick=()=>deleteProduct(document.getElementById('editId').value);
+document.getElementById('addBtn').onclick=()=>openProduct();
+document.getElementById('productForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('editId').value;const p={id:id||uid(),name:document.getElementById('pName').value.trim(),qty:Number(document.getElementById('pQty').value),unit:document.getElementById('pUnit').value,zone:document.getElementById('pZone').value,date:document.getElementById('pDate').value,dateType:document.getElementById('pDateType').value,barcode:document.getElementById('pBarcode').value.trim(),icon:document.getElementById('pIcon').value,category:document.getElementById('pCategory').value};if(id){db.products=db.products.map(x=>x.id===id?{...x,...p}:x)}else db.products.push(p);if(pendingShoppingKey){db.bought[pendingShoppingKey]=true;pendingShoppingKey=null;}saveDB();closeModal(document.getElementById('productModal'));render();syncCloud()};
+document.getElementById('search').addEventListener('input',render);
+document.getElementById('saveProfile').onclick=()=>{db.profile.person=document.getElementById('personName').value.trim();db.profile.household=document.getElementById('householdName').value.trim();saveDB();render();alert('Perfil guardado')};
+document.getElementById('profileBtn').onclick=()=>showView('settings');document.getElementById('lowShortcut').onclick=()=>showView('settings');document.getElementById('lowShortcut').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showView('settings')}};
+document.getElementById('clearBtn').onclick=()=>{if(confirm('¿Seguro que quieres borrar todos los productos de esta despensa?')){db.products=[];saveDB();render();syncCloud()}};
+document.getElementById('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-despensa-copia.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('scanBtn').onclick=()=>{document.getElementById('scanModal').classList.add('open');startCamera()};
+const ICONS=['🧽','🧴','🧻','🧹','🪥','🐶','🐱','🍅','🥬','🥔','🥕','🧅','🧄','🥦','🍌','🍎','🍋','🍓','🍞','🥐','🥚','🧀','🥛','🥩','🍗','🐟','🥫','🍝','🍚','🫘','🍪','🍫','🧈','🧃','🫙','🧂','🍯','🥣','🍕','🍔','🥗','🍲','📦'];
+function renderIconPicker(){const chosen=document.getElementById('pIcon').value;document.getElementById('iconPicker').innerHTML=ICONS.map(x=>`<button type="button" class="icon-choice ${chosen===x?'selected':''}" data-icon="${x}">${x}</button>`).join('')}
+document.getElementById('iconPicker').onclick=e=>{const b=e.target.closest('[data-icon]');if(b){document.getElementById('pIcon').value=b.dataset.icon;renderIconPicker()}};
+
+const PRODUCT_CATALOG=[{"name": "Leche entera", "category": "Alimentación"}, {"name": "Leche semidesnatada", "category": "Alimentación"}, {"name": "Leche desnatada", "category": "Alimentación"}, {"name": "Bebida de avena", "category": "Alimentación"}, {"name": "Bebida de soja", "category": "Alimentación"}, {"name": "Yogur natural", "category": "Alimentación"}, {"name": "Yogur griego", "category": "Alimentación"}, {"name": "Queso fresco", "category": "Alimentación"}, {"name": "Queso rallado", "category": "Alimentación"}, {"name": "Queso mozzarella", "category": "Alimentación"}, {"name": "Mantequilla", "category": "Alimentación"}, {"name": "Nata para cocinar", "category": "Alimentación"}, {"name": "Huevos", "category": "Alimentación"}, {"name": "Pan de molde", "category": "Alimentación"}, {"name": "Pan integral", "category": "Alimentación"}, {"name": "Pan tostado", "category": "Alimentación"}, {"name": "Tortillas de trigo", "category": "Alimentación"}, {"name": "Harina de trigo", "category": "Alimentación"}, {"name": "Harina de avena", "category": "Alimentación"}, {"name": "Levadura", "category": "Alimentación"}, {"name": "Arroz redondo", "category": "Alimentación"}, {"name": "Arroz basmati", "category": "Alimentación"}, {"name": "Macarrones", "category": "Alimentación"}, {"name": "Espaguetis", "category": "Alimentación"}, {"name": "Fideos", "category": "Alimentación"}, {"name": "Cuscús", "category": "Alimentación"}, {"name": "Quinoa", "category": "Alimentación"}, {"name": "Avena", "category": "Alimentación"}, {"name": "Garbanzos cocidos", "category": "Alimentación"}, {"name": "Lentejas cocidas", "category": "Alimentación"}, {"name": "Alubias cocidas", "category": "Alimentación"}, {"name": "Tomate triturado", "category": "Alimentación"}, {"name": "Tomate frito", "category": "Alimentación"}, {"name": "Atún en lata", "category": "Alimentación"}, {"name": "Sardinas en lata", "category": "Alimentación"}, {"name": "Maíz dulce", "category": "Alimentación"}, {"name": "Aceitunas", "category": "Alimentación"}, {"name": "Aceite de oliva", "category": "Alimentación"}, {"name": "Aceite de girasol", "category": "Alimentación"}, {"name": "Vinagre", "category": "Alimentación"}, {"name": "Sal", "category": "Alimentación"}, {"name": "Pimienta", "category": "Alimentación"}, {"name": "Azúcar", "category": "Alimentación"}, {"name": "Azúcar glas", "category": "Alimentación"}, {"name": "Miel", "category": "Alimentación"}, {"name": "Café", "category": "Alimentación"}, {"name": "Cacao en polvo", "category": "Alimentación"}, {"name": "Té", "category": "Alimentación"}, {"name": "Galletas", "category": "Alimentación"}, {"name": "Chocolate negro", "category": "Alimentación"}, {"name": "Mermelada", "category": "Alimentación"}, {"name": "Crema de cacahuete", "category": "Alimentación"}, {"name": "Patatas", "category": "Alimentación"}, {"name": "Boniato", "category": "Alimentación"}, {"name": "Cebolla", "category": "Alimentación"}, {"name": "Ajo", "category": "Alimentación"}, {"name": "Zanahoria", "category": "Alimentación"}, {"name": "Calabacín", "category": "Alimentación"}, {"name": "Berenjena", "category": "Alimentación"}, {"name": "Pimiento rojo", "category": "Alimentación"}, {"name": "Pimiento verde", "category": "Alimentación"}, {"name": "Lechuga", "category": "Alimentación"}, {"name": "Espinacas", "category": "Alimentación"}, {"name": "Brócoli", "category": "Alimentación"}, {"name": "Tomate", "category": "Alimentación"}, {"name": "Pepino", "category": "Alimentación"}, {"name": "Champiñones", "category": "Alimentación"}, {"name": "Calabaza", "category": "Alimentación"}, {"name": "Manzana", "category": "Alimentación"}, {"name": "Plátano", "category": "Alimentación"}, {"name": "Naranja", "category": "Alimentación"}, {"name": "Limón", "category": "Alimentación"}, {"name": "Fresas", "category": "Alimentación"}, {"name": "Aguacate", "category": "Alimentación"}, {"name": "Pechuga de pollo", "category": "Alimentación"}, {"name": "Muslos de pollo", "category": "Alimentación"}, {"name": "Carne picada", "category": "Alimentación"}, {"name": "Ternera", "category": "Alimentación"}, {"name": "Jamón cocido", "category": "Alimentación"}, {"name": "Pavo en lonchas", "category": "Alimentación"}, {"name": "Bacon", "category": "Alimentación"}, {"name": "Salmón", "category": "Alimentación"}, {"name": "Merluza", "category": "Alimentación"}, {"name": "Gambas", "category": "Alimentación"}, {"name": "Pizza congelada", "category": "Alimentación"}, {"name": "Patatas fritas congeladas", "category": "Alimentación"}, {"name": "Verduras congeladas", "category": "Alimentación"}, {"name": "Caldo de pollo", "category": "Alimentación"}, {"name": "Caldo de verduras", "category": "Alimentación"}, {"name": "Agua mineral", "category": "Alimentación"}, {"name": "Zumo de naranja", "category": "Alimentación"}, {"name": "Detergente líquido", "category": "Limpieza"}, {"name": "Detergente en polvo", "category": "Limpieza"}, {"name": "Suavizante", "category": "Limpieza"}, {"name": "Quitamanchas", "category": "Limpieza"}, {"name": "Lejía", "category": "Limpieza"}, {"name": "Amoniaco", "category": "Limpieza"}, {"name": "Limpiador multiusos", "category": "Limpieza"}, {"name": "Limpiacristales", "category": "Limpieza"}, {"name": "Fregasuelos", "category": "Limpieza"}, {"name": "Desengrasante", "category": "Limpieza"}, {"name": "Limpiador de baño", "category": "Limpieza"}, {"name": "Limpiador WC", "category": "Limpieza"}, {"name": "Lavavajillas a mano", "category": "Limpieza"}, {"name": "Pastillas lavavajillas", "category": "Limpieza"}, {"name": "Abrillantador lavavajillas", "category": "Limpieza"}, {"name": "Sal lavavajillas", "category": "Limpieza"}, {"name": "Estropajos", "category": "Limpieza"}, {"name": "Bayetas", "category": "Limpieza"}, {"name": "Esponjas", "category": "Limpieza"}, {"name": "Guantes de limpieza", "category": "Limpieza"}, {"name": "Champú", "category": "Higiene"}, {"name": "Acondicionador", "category": "Higiene"}, {"name": "Gel de ducha", "category": "Higiene"}, {"name": "Jabón de manos", "category": "Higiene"}, {"name": "Pasta de dientes", "category": "Higiene"}, {"name": "Cepillo de dientes", "category": "Higiene"}, {"name": "Desodorante", "category": "Higiene"}, {"name": "Crema hidratante", "category": "Higiene"}, {"name": "Protector solar", "category": "Higiene"}, {"name": "Compresas", "category": "Higiene"}, {"name": "Tampones", "category": "Higiene"}, {"name": "Pañuelos de papel", "category": "Higiene"}, {"name": "Algodón", "category": "Higiene"}, {"name": "Toallitas húmedas", "category": "Higiene"}, {"name": "Papel higiénico", "category": "Hogar"}, {"name": "Papel de cocina", "category": "Hogar"}, {"name": "Servilletas", "category": "Hogar"}, {"name": "Bolsas de basura", "category": "Hogar"}, {"name": "Papel de aluminio", "category": "Hogar"}, {"name": "Film transparente", "category": "Hogar"}, {"name": "Papel de horno", "category": "Hogar"}, {"name": "Pilas", "category": "Hogar"}, {"name": "Bombillas", "category": "Hogar"}, {"name": "Velas", "category": "Hogar"}, {"name": "Cerillas", "category": "Hogar"}, {"name": "Bolsas de congelación", "category": "Hogar"}, {"name": "Pienso para perro", "category": "Mascotas"}, {"name": "Pienso para gato", "category": "Mascotas"}, {"name": "Comida húmeda para perro", "category": "Mascotas"}, {"name": "Comida húmeda para gato", "category": "Mascotas"}, {"name": "Arena para gato", "category": "Mascotas"}, {"name": "Bolsas para excrementos", "category": "Mascotas"}, {"name": "Premios para perro", "category": "Mascotas"}, {"name": "Premios para gato", "category": "Mascotas"}];
+function showCatalog(){const q=norm(document.getElementById('catalogSearch').value);const el=document.getElementById('catalogResults');if(!q){el.hidden=true;return}const matches=PRODUCT_CATALOG.filter(p=>norm(p.name).includes(q)).slice(0,30);el.innerHTML=matches.map((p,i)=>`<button type="button" class="recipe-result" data-catalog="${esc(p.name)}" data-category="${esc(p.category)}">${esc(p.name)} <span class="muted small">· ${esc(p.category)}</span></button>`).join('')||'<p class="note" style="padding:10px">Sin resultados. Puedes escribirlo manualmente.</p>';el.hidden=false}
+document.getElementById('catalogSearch').addEventListener('input',showCatalog);
+document.getElementById('catalogResults').addEventListener('click',e=>{const b=e.target.closest('[data-catalog]');if(!b)return;document.getElementById('pName').value=b.dataset.catalog;document.getElementById('pCategory').value=b.dataset.category;document.getElementById('catalogSearch').value=b.dataset.catalog;document.getElementById('catalogResults').hidden=true});
+function lowMinimums(){return (db.minimums||[]).map(m=>{const [target,unit]=standardized(Number(m.qty),m.unit);const stock=db.products.filter(p=>p.zone!=='Despensa emergencia'&&(!p.date||daysTo(p.date)>=0)&&norm(p.name)===norm(m.name)).reduce((sum,p)=>{const [n,u]=standardized(Number(p.qty),p.unit);return sum+(u===unit?n:0)},0);return {...m,stock,target,missing:Math.max(0,target-stock)}}).filter(m=>m.missing>0)}
+function renderMinimums(){const el=document.getElementById('minimumList');if(!el)return;el.innerHTML='<p class="note">'+(lowMinimums().length?'Faltan: '+lowMinimums().map(m=>esc(m.name)+' ('+Number(m.missing.toFixed(2))+' '+esc(standardized(Number(m.qty),m.unit)[1])+')').join(', '):'No hay productos por debajo del mínimo.')+'</p>'+(db.minimums||[]).map(m=>`<div class="priority-row"><span><b>${esc(m.name)}</b><div class="note">Mínimo: ${m.qty} ${esc(m.unit)}</div></span><button type="button" class="dangerbtn" data-remove-minimum="${esc(m.id)}">Eliminar</button></div>`).join('')||'<p class="note">Todavía no has configurado productos mínimos.</p>'}
+document.getElementById('minimumForm').onsubmit=e=>{e.preventDefault();const name=document.getElementById('minimumName').value.trim(),qty=Number(document.getElementById('minimumQty').value),unit=document.getElementById('minimumUnit').value;if(!name||qty<=0)return;db.minimums=db.minimums||[];db.minimums=db.minimums.filter(m=>!(norm(m.name)===norm(name)&&m.unit===unit));db.minimums.push({id:uid(),name,qty,unit});saveDB();document.getElementById('minimumForm').reset();render()};
+document.getElementById('minimumList').onclick=e=>{const b=e.target.closest('[data-remove-minimum]');if(!b)return;db.minimums=db.minimums.filter(m=>m.id!==b.dataset.removeMinimum);saveDB();render()};
+
+const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function parseIngredients(raw){return raw.split('\n').map(line=>{const m=line.trim().match(/^(\d+(?:[.,]\d+)?)\s+(kg|g|ml|l|litros|unidades|latas|paquetes|tarros|botellas)\s+(.+)$/i);return m?{qty:Number(m[1].replace(',','.')),unit:m[2].toLowerCase(),name:m[3].trim()}:null}).filter(Boolean)}
+function standardized(q,u){if(u==='kg')return [q*1000,'g'];if(u==='l'||u==='litros')return [q*1000,'ml'];return [q,u]}
+function ingredientKey(name,unit){return norm(name)+'|'+unit}
+function computeShopping(){const needed=new Map();for(const meal of db.meals){const recipe=db.recipes.find(r=>r.id===meal.recipeId);if(!recipe)continue;for(const ing of parseIngredients(recipe.ingredients)){const [qty,unit]=standardized(ing.qty,ing.unit);const key=ingredientKey(ing.name,unit);const old=needed.get(key)||{name:ing.name,qty:0,unit,key};old.qty+=qty*(Math.max(1,Number(meal.servings)||Number(recipe.servings)||2)/Math.max(1,Number(recipe.servings)||2));needed.set(key,old)}}
+ for(const m of db.minimums||[]){const [qty,unit]=standardized(Number(m.qty),m.unit);const key=ingredientKey(m.name,unit);const old=needed.get(key)||{name:m.name,qty:0,unit,key};old.qty=Math.max(old.qty,qty);needed.set(key,old)}
+ const stock=db.products.filter(p=>p.zone!=='Despensa emergencia'&&(!p.date||daysTo(p.date)>=0)).map(p=>{const [qty,unit]=standardized(Number(p.qty)||0,p.unit);return {...p,qty,unit}});
+ return [...needed.values()].map(n=>{const matches=stock.filter(p=>norm(p.name)===norm(n.name)&&p.unit===n.unit);const available=matches.reduce((sum,p)=>sum+p.qty,0);return {...n,missing:Math.max(0,Math.round((n.qty-available)*100)/100),available}})}
+function renderPlanning(){const week=document.getElementById('weekGrid');if(!week)return;week.innerHTML=DAYS.map((d,i)=>`<div class="day-card"><h3>${d}</h3>${['Desayuno','Comida','Merienda','Cena'].map(t=>{const dishes=db.meals.filter(x=>x.day===i&&x.type===t);return `<div class="meal-row" style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${t}:</b>${dishes.length?dishes.map(m=>{const r=db.recipes.find(x=>x.id===m.recipeId);return `<div style="display:flex;align-items:center;gap:6px;margin-top:5px"><span style="flex:1">${r?esc(r.name)+' · '+(m.servings||r.servings||2)+' pers.':'Receta eliminada'}</span><button class="mini-btn" data-remove-meal="${m.id}" aria-label="Quitar este plato">×</button></div>`}).join(''):' <span class="muted">Sin planificar</span>'}</div><button class="mini-btn" data-plan-day="${i}" data-plan-type="${t}" aria-label="Añadir plato a ${t}">＋</button></div>`}).join('')}</div>`).join('');
+
+ const shopping=computeShopping().filter(x=>x.missing>0);document.getElementById('shoppingList').innerHTML=shopping.length?shopping.map(x=>`<label class="shop-item"><input type="checkbox" data-bought="${esc(x.key)}" ${db.bought[x.key]?'checked':''}><span style="${db.bought[x.key]?'text-decoration:line-through;opacity:.5':''}"><b>${esc(x.name)}</b> · ${x.missing} ${esc(x.unit)}<div class="note">Necesitas ${x.qty}; tienes ${x.available}</div></span></label>`).join(''):'<div class="empty">No faltan ingredientes para los platos planificados.</div>';
+}
+function openRecipe(r){document.getElementById('recipeId').value=r?.id||'';document.getElementById('recipeName').value=r?.name||'';document.getElementById('recipeIngredients').value=r?.ingredients||'';document.getElementById('recipeServings').value=r?.servings||2;document.getElementById('recipeModal').classList.add('open')}
+function recipeMatches(term){const q=norm(term);return [...db.recipes].filter(r=>norm(r.name).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,'es')).slice(0,40)}
+function chooseMealRecipe(id){const r=db.recipes.find(x=>x.id===id);if(!r)return;const sel=document.getElementById('mealRecipe');sel.innerHTML=`<option value="${esc(r.id)}">${esc(r.name)}</option>`;sel.value=r.id;document.getElementById('mealRecipeSearch').value=r.name;document.getElementById('mealRecipeSelected').textContent='Seleccionada: '+r.name;document.getElementById('mealServings').value=r.servings||2;document.getElementById('mealRecipeResults').hidden=true}
+function showMealRecipes(){const term=document.getElementById('mealRecipeSearch').value;const results=recipeMatches(term);const el=document.getElementById('mealRecipeResults');el.innerHTML=results.length?results.map(r=>`<button type="button" class="recipe-result" role="option" data-choose-recipe="${esc(r.id)}">${esc(r.name)} · ${r.servings||2} personas</button>`).join(''):'<p class="note" style="padding:10px">No hay recetas con ese nombre.</p>';el.hidden=false}
+document.getElementById('mealRecipeSearch').addEventListener('input',()=>{document.getElementById('mealRecipe').innerHTML='';document.getElementById('mealRecipeSelected').textContent='Selecciona una receta del desplegable.';showMealRecipes()});
+document.getElementById('mealRecipeSearch').addEventListener('focus',showMealRecipes);
+document.getElementById('mealRecipeResults').addEventListener('click',e=>{const b=e.target.closest('[data-choose-recipe]');if(b)chooseMealRecipe(b.dataset.chooseRecipe)});
+function openMeal(day=0,type='Comida'){if(!db.recipes.length){alert('Primero crea una receta.');openRecipe();return}document.getElementById('mealDay').innerHTML=DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('');document.getElementById('mealDay').value=day;document.getElementById('mealType').value=type;document.getElementById('mealServings').value=2;document.getElementById('mealRecipeSearch').value='';document.getElementById('mealRecipe').innerHTML='';document.getElementById('mealRecipeSelected').textContent='Selecciona una receta del desplegable.';document.getElementById('mealRecipeResults').hidden=true;document.getElementById('mealModal').classList.add('open')}
+
+document.getElementById('newRecipe').onclick=()=>openRecipe();document.getElementById('newMeal').onclick=()=>openMeal();
+document.getElementById('recipeForm').onsubmit=e=>{e.preventDefault();const id=document.getElementById('recipeId').value||uid();const name=document.getElementById('recipeName').value.trim(),ingredients=document.getElementById('recipeIngredients').value.trim();if(ingredients.split('\n').filter(x=>x.trim()).length!==parseIngredients(ingredients).length){alert('Revisa los ingredientes: escribe una línea por ingrediente, por ejemplo 2 unidades huevos.');return}const servings=Number(document.getElementById('recipeServings').value);if(!Number.isInteger(servings)||servings<1||servings>30){alert('Indica entre 1 y 30 comensales.');return}const r={id,name,ingredients,servings,premade:false};db.recipes=db.recipes.filter(x=>x.id!==id);db.recipes.push(r);saveDB();closeModal(document.getElementById('recipeModal'));render()};
+document.getElementById('mealForm').onsubmit=e=>{e.preventDefault();const day=Number(document.getElementById('mealDay').value),type=document.getElementById('mealType').value,recipeId=document.getElementById('mealRecipe').value;const servings=Number(document.getElementById('mealServings').value);if(!recipeId){alert('Busca y selecciona una receta de la lista.');return}if(!Number.isInteger(servings)||servings<1||servings>30){alert('Indica entre 1 y 30 personas.');return}db.meals.push({id:uid(),day,type,recipeId,servings});db.bought={};saveDB();closeModal(document.getElementById('mealModal'));render()};
+document.getElementById('planning').addEventListener('click',e=>{const p=e.target.closest('[data-plan-day]');if(p)openMeal(Number(p.dataset.planDay),p.dataset.planType);const rm=e.target.closest('[data-remove-meal]');if(rm){db.meals=db.meals.filter(x=>x.id!==rm.dataset.removeMeal);db.bought={};saveDB();render()}const er=e.target.closest('[data-edit-recipe]');if(er){const r=db.recipes.find(x=>x.id===er.dataset.editRecipe);openRecipe(r?.premade?{...r,id:'',name:r.name+' (mi versión)'}:r)}const dr=e.target.closest('[data-delete-recipe]');if(dr&&premadeIds.has(dr.dataset.deleteRecipe)){alert('Las recetas preparadas no se eliminan, pero puedes editarlas y guardarlas como personalizadas.');return}if(dr&&confirm('¿Eliminar esta receta?')){db.recipes=db.recipes.filter(x=>x.id!==dr.dataset.deleteRecipe);db.meals=db.meals.filter(x=>x.recipeId!==dr.dataset.deleteRecipe);db.bought={};saveDB();render()}});
+document.getElementById('shoppingList').onchange=e=>{
+ if(!e.target.matches('[data-bought]'))return;
+ const key=e.target.dataset.bought;
+ if(!e.target.checked){db.bought[key]=false;saveDB();render();return;}
+ const item=computeShopping().find(x=>x.key===key&&x.missing>0);
+ if(!item){render();return;}
+ // No tachar ni descontar stock hasta que se confirme el registro.
+ e.target.checked=false;
+ openProduct({name:item.name,qty:item.missing,unit:item.unit,zone:'Despensa',date:'',dateType:'caducidad',barcode:'',icon:''});
+ pendingShoppingKey=key;
+ document.getElementById('modalTitle').textContent='Guardar compra en la despensa';
+ const note=document.getElementById('shoppingAddNote');if(note)note.remove();
+ const hint=document.createElement('p');hint.id='shoppingAddNote';hint.className='note';hint.textContent='La fecha de caducidad es opcional. Confirma para añadir este ingrediente. Si cancelas, seguirá pendiente en la lista de la compra.';
+ document.getElementById('productForm').prepend(hint);
+};
+document.getElementById('clearWeek').onclick=()=>{if(confirm('¿Vaciar el menú de la semana?')){db.meals=[];db.bought={};saveDB();render()}};
+document.getElementById('copyShopping').onclick=async()=>{const lines=computeShopping().filter(x=>x.missing>0&&!db.bought[x.key]).map(x=>`☐ ${x.name}: ${x.missing} ${x.unit}`);const t=lines.length?lines.join('\n'):'No falta nada para el menú semanal';try{await navigator.clipboard.writeText(t);alert('Lista copiada')}catch(e){prompt('Copia la lista:',t)}};
+let qrScanner=null, scannerBusy=false;
+async function startCamera(){
+ const statusEl=document.getElementById('scanStatus');
+ statusEl.textContent='Preparando la cámara…';
+ if(!window.Html5Qrcode){statusEl.textContent='No se pudo cargar el lector. Comprueba la conexión a Internet o escribe el código manualmente.';return}
+ try{
+  scannerBusy=false;
+  qrScanner=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E]});
+  await qrScanner.start({facingMode:'environment'},{fps:12,qrbox:{width:260,height:150},aspectRatio:1.777},async code=>{
+   if(scannerBusy)return;
+   scannerBusy=true;
+   document.getElementById('manualBarcode').value=code;
+   statusEl.textContent='Código detectado. Buscando producto…';
+   await stopCamera();
+   lookupBarcode(code);
+  },()=>{});
+  statusEl.textContent='Enfoca el código de barras con buena luz y mantén el móvil quieto.';
+ }catch(e){statusEl.textContent='No se pudo abrir la cámara. Comprueba el permiso de cámara en Safari o introduce el código manualmente.';await stopCamera()}
+}
+async function stopCamera(){
+ const scanner=qrScanner;qrScanner=null;
+ if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}try{scanner.clear()}catch(e){}}
+}
+document.getElementById('barcodePhoto').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;const statusEl=document.getElementById('scanStatus');statusEl.textContent='Analizando la fotografía…';if(!window.Html5Qrcode){statusEl.textContent='El lector no se ha cargado. Comprueba la conexión a Internet.';return}await stopCamera();let photoScanner;try{photoScanner=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A]});const code=await photoScanner.scanFile(file,true);await photoScanner.clear();lookupBarcode(code)}catch(err){statusEl.textContent='No se pudo leer el código de la foto. Prueba con más luz, sin reflejos y encuadrando todo el código.';try{await photoScanner?.clear()}catch(x){}}};
+document.getElementById('manualLookup').onclick=async()=>{const code=document.getElementById('manualBarcode').value.trim();if(code){await stopCamera();lookupBarcode(code)}};
+async function lookupBarcode(code){
+ const statusEl=document.getElementById('scanStatus');statusEl.textContent='Buscando producto…';
+ try{
+  const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json');const data=await r.json();
+  const prod=data.product;
+  if(data.status===1&&prod){document.getElementById('scanModal').classList.remove('open');stopCamera();openProduct({name:prod.product_name_es||prod.product_name||prod.generic_name||'',qty:1,unit:'unidades',zone:'Despensa',date:'',dateType:'caducidad',barcode:code});}
+  else {statusEl.textContent='No encontramos ese producto. Puedes añadirlo manualmente.';document.getElementById('scanModal').classList.remove('open');stopCamera();openProduct({name:'',qty:1,unit:'unidades',zone:'Despensa',date:'',dateType:'caducidad',barcode:code})}
+ }catch(e){statusEl.textContent='No se pudo consultar la base de datos. Puedes registrarlo manualmente.'}
+}
+render();
+initializeAuth();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js?v=13').catch(()=>{});

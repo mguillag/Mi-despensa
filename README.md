@@ -1,22 +1,18 @@
-# Mi despensa — primera versión
+# Mi despensa V13 — Nutrición (versión inicial)
 
-## Qué incluye
-- Inventario por zonas: Despensa, Nevera, Congelador y Despensa emergencia.
-- Cantidades y unidades.
-- Registro por lote con fecha de caducidad, consumo preferente o fecha orientativa tras apertura.
-- Orden de prioridad por fecha.
-- Búsqueda de productos por código de barras mediante Open Food Facts.
-- Escáner con `BarcodeDetector` cuando el navegador lo soporta; introducción manual como alternativa.
-- Datos guardados localmente en el navegador y exportación JSON.
-- Diseño adaptable a iPhone y Android, con manifiesto PWA y service worker.
+Actualiza los archivos del repositorio GitHub Pages. Haz antes una copia de seguridad desde Ajustes. No desinstales la PWA.
 
-## Limitaciones de esta versión
-Esta es una primera versión local: cada navegador/dispositivo tiene su propia despensa. Todavía no hay cuentas familiares, sincronización entre móviles ni notificaciones push programadas. Esas funciones requieren añadir autenticación y una base de datos compartida (por ejemplo, Supabase) y configurar permisos/avisos.
+- Sustituye Comparar por Nutrición; permite seleccionar días, ver promedios y detalle por comida.
+- Objetivos individuales guardados localmente por identificador de cuenta (todavía NO sincronizados en Supabase).
+- Añade recetas precargadas sin cambiar los identificadores de las recetas existentes.
+- Valores nutricionales orientativos por ingredientes de una tabla genérica local. Las preparaciones comerciales requieren valores de etiqueta.
+- No calcula todavía vitaminas/minerales, grasas mono/poliinsaturadas ni azúcares añadidos: no se inventan.
+- Por ahora cada plato planificado se interpreta como una ración para el análisis personal, aunque el menú permita varios comensales. Para hogares con raciones diferentes será necesario un plan por persona.
 
-Las notificaciones programadas en segundo plano no se garantizan en una PWA, especialmente en iOS. En una siguiente fase podemos implementar avisos dentro de la app y estudiar push web con un servicio compatible.
+IMPORTANTE: No usar los datos como asesoramiento dietético ni como medición exacta.
 
-## Probar
-Abre `index.html` para probar el inventario. La cámara y la instalación PWA requieren servir la carpeta desde HTTPS o `localhost`. Para compartirla online, publica estos archivos en un hosting estático HTTPS, como GitHub Pages.
-
-## Privacidad
-Los productos se guardan en `localStorage` del navegador. La consulta de códigos de barras envía el código a Open Food Facts para buscar los datos del producto. No introduzcas información sensible.
+## Corrección V13.1
+- Al abrir Nutrición se selecciona el día actual, según el día de la semana local.
+- El día seleccionado muestra su total por persona; varios días muestran la media diaria por persona.
+- Se respeta el día exacto de cada plato del menú. El número de comensales del menú no multiplica los nutrientes individuales: los ingredientes de la receta se dividen entre las raciones base de la receta.
+- El total de toda la receta y la cantidad que se compra para varias personas siguen siendo conceptos distintos.
